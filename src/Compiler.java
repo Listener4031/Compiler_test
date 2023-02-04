@@ -27,9 +27,9 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 
 public class Compiler {
-    String name = "test.mx";
-    InputStream raw = new FileInputStream(name);
     public static void main(String[] args) throws Exception{
+        String name = "test.mx";
+        InputStream raw = new FileInputStream(name);
         PrintStream IRout = new PrintStream("llvm-test.ll");
         PrintStream SSA = new PrintStream("ssa.ll");
         PrintStream AssmDebugOut = new PrintStream("debug.s");

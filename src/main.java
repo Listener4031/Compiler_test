@@ -26,14 +26,14 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
-public class main {
-    String name = "test.mx";
-    InputStream raw = new FileInputStream(name);
+public class Compiler {
     public static void main(String[] args) throws Exception{
-        PrintStream IRout = new PrintStream("llvm-test.ll") ;
-        PrintStream SSA = new PrintStream("ssa.ll") ;
-        PrintStream AssmDebugOut = new PrintStream("debug.s") ;
-        PrintStream out = new PrintStream("test.s") ;
+        String name = "test.mx";
+        InputStream raw = new FileInputStream(name);
+        PrintStream IRout = new PrintStream("llvm-test.ll");
+        PrintStream SSA = new PrintStream("ssa.ll");
+        PrintStream AssmDebugOut = new PrintStream("debug.s");
+        PrintStream out = new PrintStream("output.s");
         try{
             CharStream input = CharStreams.fromStream(raw);
             MxLiteLexer lexer = new MxLiteLexer(input);
@@ -43,25 +43,22 @@ public class main {
             MxLiteParser parser = new MxLiteParser(tokens);
             parser.removeErrorListeners();
             parser.addErrorListener(new MxLiteErrorListener());
-
             ParseTree parseTreeRoot = parser.program();
             ASTBuilder astBuilder = new ASTBuilder();
             RootNode ASTRoot = (RootNode) astBuilder.visit(parseTreeRoot);
-
             globalScope gScope = new globalScope();
             new SymbolCollector(gScope).visit(ASTRoot);
             new SemanticChecker(gScope).visit(ASTRoot);
-
-            globalDefine globalDef = new globalDefine() ;
-            new IRBuilder(globalDef, gScope).visit(ASTRoot) ;
+            globalDefine globalDef = new globalDefine();
+            new IRBuilder(globalDef, gScope).visit(ASTRoot);
             new IRPrinter().visitGlobalDef(IRout, globalDef);
-            new MemToReg(globalDef) ;
+            new MemToReg(globalDef);
             new IRPrinter().visitGlobalDef(SSA, globalDef);
-            AssemblyGlobalDefine assemblyGlobalDefine = new AssemblyGlobalDefine() ;
-            new AssemblyBuilder(globalDef, assemblyGlobalDefine) ;
-            new AssemblyPrinter(AssmDebugOut, assemblyGlobalDefine) ;
-            new RegisterAllocation(assemblyGlobalDefine) ;
-            new AssemblyPrinter(out, assemblyGlobalDefine) ;
+            AssemblyGlobalDefine assemblyGlobalDefine = new AssemblyGlobalDefine();
+            new AssemblyBuilder(globalDef, assemblyGlobalDefine);
+            new AssemblyPrinter(AssmDebugOut, assemblyGlobalDefine);
+            new RegisterAllocation(assemblyGlobalDefine);
+            new AssemblyPrinter(out, assemblyGlobalDefine);
         } 
         catch(error er) {
             System.err.println(er.toString());
