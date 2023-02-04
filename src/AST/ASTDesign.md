@@ -1,0 +1,45 @@
+- ASTNode
+  - (Package AST.Definition)
+  - ProgramNode		// node as a root
+  - DefNode
+    - FuncDefNode
+    - ConstructorDefNode
+    - ClassDefNode
+  - TypeNode
+  - (Package AST.Statement)
+  - StmtNode		// node as a statement
+    - VarDefStmtNode
+    - VarDefSubStmtNode
+    - BlockStmtNode
+    - ExprStmtNode
+    - EmptyStmtNode
+    - (Package AST.Statement.ControlFlow)
+    - IfStmtNode
+    - WhileStmtNode
+    - ForStmtNode
+    - ControlStmtNode
+    - ReturnStmtNode
+  - (Package AST.Expression)
+  - ExprNode		// node as an expression
+    - (Package AST.Expression.Atom)
+    - AtomExprNode
+      - IntExprNode
+      - BoolExprNode
+      - StringExprNode
+      - NullExprNode
+      - VarExprNode
+      - ThisExprNode
+    - (Package AST.Expression)
+    - BinaryExprNode
+    - PrefixExprNode
+    - SuffixExprNode
+    - LambdaExprNode
+    - MemberExprNode
+    - MemberFuncExprNode
+    - FuncCallExprNode
+    - SubscriptExprNode
+    - NewExprNode
+
+
+### Maintenance Document
+Todo.

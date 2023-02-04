@@ -1,1424 +1,1038 @@
 package Backend;
 
+import AST.ASTVisitor;
+import AST.Definition.*;
+import AST.Expression.*;
+import AST.Expression.Atom.*;
+import AST.Scope.Scope;
+import AST.Statement.*;
+import AST.Statement.ControlFlow.*;
+import IR.Type.*;
+import IR.Value.Constant.IntConstant;
+import IR.Value.Constant.NullConstant;
+import IR.Value.Constant.StrConstant;
+import IR.Value.Constant.ZeroInitConstant;
+import IR.Value.Global.BasicBlock;
+import IR.Value.Global.Function;
+import IR.Value.Global.Module;
+import IR.Value.Global.Variable;
+import IR.Value.Inst.*;
+import IR.Value.Value;
+import org.antlr.v4.runtime.misc.Pair;
+
 import java.util.ArrayList;
-
-import AST.*;
-import AST.primaryNode.primaryType;
-import AST.unaryExprNode.unaryOperator;
-import MIR.*;
-import MIR.IRType.IRClassType;
-import MIR.IRType.IRIntType;
-import MIR.IRType.IRNullType;
-import MIR.IRType.IRPointerType;
-import MIR.IRType.IRType;
-import MIR.IRType.IRVoidType;
-import MIR.binary.IROperator;
-import Util.FlowController;
-import Util.Scope;
-import Util.Type;
-import Util.globalScope;
-import Util.position;
-import Util.Type.basicType;
-import AST.binaryExprNode.binaryOperator;
-import AST.postIncExprNode.postIncOperator;
-import AST.preIncExprNode.preIncOperator;
-
-public class IRBuilder implements ASTVisitor{
-    private globalDefine globalDef ;
-    private block currentBlock, initCurrentBlock ;
-    private function curFunction ;
-    private Scope curScope ;
-    private globalScope gScope ;
-    private entity returnEntity ;
-    private boolean isFunctionID, isGlobalDef, isClassDefine, hasAddFunctionName ;
-    private functioncall curFuncCall ;
-    private ArrayList<IRType> curFuncCallParameters ;
-    private function initFunc ;
-    private FlowController flowController ;
-    private IRClassType curClassType ;
-    private register curClass ;
-
-    public IRBuilder(globalDefine _globalDef, globalScope _gScope) {
-        globalDef = _globalDef; gScope = _gScope; curScope = _gScope ;
-
-        initFunc = new function("__init") ;
-        // label functionEntryLabel = new label(initFunc.identifier + "_entry") ;
-        // initFunc.rootBlock.identifier = functionEntryLabel.labelID ;
-        initFunc.returnType = new IRVoidType() ;
-        // initFunc.rootBlock.blockLabel = functionEntryLabel ;
-        initFunc.allocaBlock.push_back(new branch(new label(initFunc.rootBlock.identifier)));
-        initCurrentBlock = initFunc.rootBlock ;
-
-        isFunctionID = false; isGlobalDef = false ;
-        isClassDefine = false; hasAddFunctionName = false ;
-        addBuiltinFunction() ;
-        globalDef.functions.add(initFunc) ;
-    }
-
-    private void addBuiltinFunction () {
-        function newFunc = new function("print") ;
-        ArrayList<IRType> parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.returnType = new IRVoidType() ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType(new IRIntType(8)))) ;
-        parameters.add(new IRPointerType(new IRIntType(8))) ;
-        // gScope.functionIRParameters.put("print", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("println") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.returnType = new IRVoidType() ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType(new IRIntType(8)))) ;
-        parameters.add (new IRPointerType(new IRIntType(8))) ;
-        // gScope.functionIRParameters.put("println", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("printInt") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.returnType = new IRVoidType() ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRIntType(32))) ;
-        parameters.add (new IRIntType(32)) ;
-        // gScope.functionIRParameters.put("printInt", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("printlnInt") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.returnType = new IRVoidType() ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRIntType(32))) ;
-        parameters.add (new IRIntType(32)) ;
-        // gScope.functionIRParameters.put("printlnInt", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("getString") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.returnType = new IRPointerType(new IRIntType(8)) ;
-        // gScope.functionIRParameters.put("getString", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("getInt") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.returnType = new IRIntType(32) ;
-        // gScope.functionIRParameters.put("getInt", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("toString") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRIntType(32))) ;
-        parameters.add(new IRIntType(32)) ;
-        newFunc.returnType = new IRPointerType(new IRIntType(8)) ;
-        // gScope.functionIRParameters.put("toString", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        // gScope = (globalScope) gScope.getScopeFromClassName(new position(0, 0), "__Array") ;
-        // newFunc = new function ("size") ;
-        // parameters = new ArrayList<>() ;
-        // newFunc.isBuiltin = true ;
-        // newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        // parameters.add(new IRPointerType (new IRIntType (8))) ;
-        // newFunc.returnType = new IRIntType(32) ;
-        // // gScope.functionIRParameters.put("size", parameters) ;
-        // globalDef.functions.add(newFunc) ;
-        // gScope = (globalScope) gScope.parentScope() ;
-
-        gScope = (globalScope) gScope.getScopeFromClassName(new position(0, 0), "string") ;
-        newFunc = new function ("length") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(32) ;
-        // gScope.functionIRParameters.put("length", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("substring") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRIntType (32))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRIntType (32))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRIntType (32)) ;
-        parameters.add (new IRIntType (32)) ;
-        newFunc.returnType = new IRPointerType(new IRIntType(8)) ;
-        // gScope.functionIRParameters.put("substring", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("parseInt") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(32) ;
-        // gScope.functionIRParameters.put("parseInt", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("ord") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRIntType (32))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRIntType(32)) ;
-        newFunc.returnType = new IRIntType(32) ;
-        // gScope.functionIRParameters.put("ord", parameters) ;
-        globalDef.functions.add(newFunc) ;
-        
-        gScope = (globalScope) gScope.parentScope() ;
-
-        newFunc = new function ("string_add") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRPointerType(new IRIntType(8)) ;
-        // gScope.functionIRParameters.put("string_add", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("string_equal") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(1) ;
-        // gScope.functionIRParameters.put("string_equal", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("string_notEqual") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(1) ;
-        // gScope.functionIRParameters.put("string_notEqual", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("string_less") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(1) ;
-        // gScope.functionIRParameters.put("string_less", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("string_lessEqual") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(1) ;
-        // gScope.functionIRParameters.put("string_lessEqual", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("string_greater") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(1) ;
-        // gScope.functionIRParameters.put("string_greater", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("string_greaterEqual") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRPointerType (new IRIntType (8)))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        parameters.add (new IRPointerType (new IRIntType (8))) ;
-        newFunc.returnType = new IRIntType(1) ;
-        // gScope.functionIRParameters.put("string_greaterEqual", parameters) ;
-        globalDef.functions.add(newFunc) ;
-
-        newFunc = new function ("malloc") ;
-        parameters = new ArrayList<>() ;
-        newFunc.isBuiltin = true ;
-        newFunc.parameters.add(new register(newFunc.curRegisterID ++, new IRIntType (64))) ;
-        parameters.add (new IRIntType (64)) ;
-        newFunc.returnType = new IRPointerType (new IRIntType (8)) ;
-        // gScope.functionIRParameters.put("malloc", parameters) ;
-        globalDef.functions.add(newFunc) ;
-    }
-
-    private IRType toIRArrayType (IRType baseType, int dim) {
-        IRType cur = baseType ;
-        for (int i = 1; i <= dim; i ++) {
-            IRType nxt = new IRPointerType(cur) ;
-            cur = nxt ;
-        }
-        return cur ;
-    }
-
-    private IRType toIRType (Type type) {
-        IRType varIRType ;
-        if (type.type == Type.basicType.Int) {
-            varIRType = toIRArrayType(new IRIntType(32), type.dim) ;
-        } else if (type.type == Type.basicType.Bool) {
-            varIRType = toIRArrayType(new IRIntType(8), type.dim) ;
-        } 
-        else if (type.type == Type.basicType.Void) varIRType = new IRVoidType() ;
-        else if (type.type == Type.basicType.Null) varIRType = new IRNullType() ;
-        else if (type.type == Type.basicType.Class) {
-            // IRType baseType = new IRPointerType (gScope.getIRTypeFromClassName(type.Identifier)) ; 
-            IRType baseType = new IRPointerType(new IRClassType(type.Identifier)) ;
-            baseType.size = 0 ;
-            Scope classScope = gScope.getScopeFromClassName(new position(0, 0), type.Identifier) ;
-            for (String key : classScope.members.keySet()) {
-                Type curType = classScope.members.get(key) ;
-                if (curType.type == basicType.Bool) baseType.size += 1 ;
-                else if (curType.type == basicType.Int && curType.dim == 0) baseType.size += 4 ;
-                else baseType.size += 8 ;
-            }
-            varIRType = toIRArrayType(baseType, type.dim) ;
-        }
-        else if (type.type == Type.basicType.String) {
-            IRType baseType = new IRPointerType(new IRIntType(8)) ;
-            varIRType = toIRArrayType(baseType, type.dim) ;
-        }
-        else varIRType = new IRIntType(32) ;
-        return varIRType ;
-    }
-
-    public boolean isCompareOperator (binaryOperator op) {
-        return op == binaryOperator.Greater || op == binaryOperator.GreaterEqual
-        || op == binaryOperator.Less || op == binaryOperator.LessEqual
-        || op == binaryOperator.NotEqual || op == binaryOperator.Equal ;
-    }
-
-    public boolean isArithmeticOperator (binaryOperator op) {
-        return op == binaryOperator.Plus || op == binaryOperator.Minus
-        || op == binaryOperator.Mul || op == binaryOperator.Div || op == binaryOperator.Mod
-        || op == binaryOperator.RightShift || op == binaryOperator.LeftShift
-        || op == binaryOperator.And || op == binaryOperator.Or || op == binaryOperator.Caret ;
-    }
-
-    @Override 
-    public void visit (arrayExprNode it) {
-        it.arrayIdentifier.accept(this) ;
-        register arrayReg = (register) returnEntity ;
-        register array = new register(curFunction.curRegisterID ++, ((IRPointerType)arrayReg.type).type) ;
-        currentBlock.push_back(new load(array.type, arrayReg, array)) ;
-        it.arrayIndex.accept(this) ;
-        entity arrayInd = returnEntity ;
-        if (returnEntity.isLvalue) {
-            arrayInd = new register(curFunction.curRegisterID ++, new IRIntType(32)) ;
-            currentBlock.push_back(new load(new IRIntType(32), returnEntity, arrayInd));
-        }
-        register returnRegPointer = new register (curFunction.curRegisterID ++, array.type) ;
-        returnRegPointer.isLvalue = true ;
-        getelementptr cur = new getelementptr(array, returnRegPointer) ;
-        cur.value.add(arrayInd) ;
-        currentBlock.push_back(cur) ;
-        returnEntity = returnRegPointer ;
-    }
-
-    @Override
-    public void visit (binaryExprNode it) {
-        if (isArithmeticOperator(it.binaryOp)) {
-            it.leftExpression.accept(this) ;
-            Type leftType = it.leftExpression.type ;
-            entity left = returnEntity ;
-            if (returnEntity.isLvalue) {
-                left = new register(curFunction.curRegisterID ++, ((IRPointerType) left.type).type) ;
-                currentBlock.push_back(new load(left.type, returnEntity, left));
-            }
-            it.rightExpression.accept(this) ;
-            Type rightType = it.rightExpression.type ;
-            entity right = returnEntity ;
-            if (returnEntity.isLvalue) {
-                right = new register(curFunction.curRegisterID ++, ((IRPointerType) right.type).type) ;
-                currentBlock.push_back(new load(right.type, returnEntity, right));
-            }
-            if (leftType.type == basicType.Int) {
-                // constant calculation
-                // if (left instanceof constant && right instanceof constant) {
-                //     int leftValue = ((constant) left).value, rightValue = ((constant) right).value ;
-                //     constant res = new constant(0, left.type) ;
-                //     if (it.binaryOp == binaryOperator.Plus) res.value = leftValue + rightValue ;
-                //     else if (it.binaryOp == binaryOperator.Minus) res.value = leftValue - rightValue ;
-                //     else if (it.binaryOp == binaryOperator.Mul) res.value = leftValue * rightValue ;
-                //     else if (it.binaryOp == binaryOperator.Div) res.value = rightValue == 0 ? -1 : leftValue / rightValue ;
-                //     else if (it.binaryOp == binaryOperator.LeftShift) res.value = leftValue << rightValue ;
-                //     else if (it.binaryOp == binaryOperator.RightShift) res.value = leftValue >> rightValue ;
-                //     else if (it.binaryOp == binaryOperator.And) res.value = leftValue & rightValue ;
-                //     else if (it.binaryOp == binaryOperator.Or) res.value = leftValue | rightValue ;
-                //     else if (it.binaryOp == binaryOperator.Caret) res.value = leftValue ^ rightValue ;
-                //     returnEntity = res ;
-                // } else {
-                    register res = new register(curFunction.curRegisterID ++, left.type) ;
-                    currentBlock.push_back(new binary(IROperator.values()[it.binaryOp.ordinal()], left.type, left, right, res)) ;
-                    returnEntity = res ;
-                // }
-            } else if (leftType.type == basicType.String && it.binaryOp == binaryOperator.Plus) {
-                typeCasting((register) left, new IRPointerType(new IRIntType(8))) ;
-                register leftString = (register) returnEntity ;
-                typeCasting((register) right, new IRPointerType(new IRIntType(8))) ;
-                register rightString = (register) returnEntity ;
-                register res = new register(curFunction.curRegisterID ++, new IRPointerType(new IRIntType(8))) ;
-                functioncall stringAdd = new functioncall("string_add", res.type, res) ;
-                stringAdd.parameters.add(leftString); stringAdd.parameters.add(rightString) ;
-                currentBlock.push_back(stringAdd) ;
-                returnEntity = res ;
-            }
-        } else if (isCompareOperator(it.binaryOp)) {
-            it.leftExpression.accept(this) ;
-            Type leftType = it.leftExpression.type ;
-            entity left = returnEntity ;
-            if (returnEntity.isLvalue) {
-                left = new register(curFunction.curRegisterID ++, ((IRPointerType) left.type).type) ;
-                currentBlock.push_back(new load(left.type, returnEntity, left));
-            }
-            it.rightExpression.accept(this) ;
-            Type rightType = it.rightExpression.type ;
-            entity right = returnEntity ;
-            if (returnEntity.isLvalue) {
-                right = new register(curFunction.curRegisterID ++, ((IRPointerType) right.type).type) ;
-                currentBlock.push_back(new load(right.type, returnEntity, right));
-            }
-            if (leftType.type == basicType.Int) {
-                // if (left instanceof constant && right instanceof constant) {
-                //     int leftValue = ((constant) left).value, rightValue = ((constant) right).value ;
-                //     constant res = new constant(0, new IRIntType(1)) ;
-                //     if (it.binaryOp == binaryOperator.Greater) res.value = leftValue > rightValue ? 1 : 0 ;
-                //     else if (it.binaryOp == binaryOperator.GreaterEqual) res.value = leftValue >= rightValue ? 1 : 0 ;
-                //     else if (it.binaryOp == binaryOperator.Less) res.value = leftValue < rightValue ? 1 : 0 ;
-                //     else if (it.binaryOp == binaryOperator.LessEqual) res.value = leftValue <= rightValue ? 1 : 0 ;
-                //     else if (it.binaryOp == binaryOperator.Equal) res.value = leftValue == rightValue ? 1 : 0 ;
-                //     else if (it.binaryOp == binaryOperator.NotEqual) res.value = leftValue != rightValue ? 1 : 0 ;
-                //     returnEntity = res ;
-                // } else {
-                    register cmpRes = new register(curFunction.curRegisterID ++, new IRIntType(1)) ; // i1
-                    currentBlock.push_back(new binary(IROperator.values()[it.binaryOp.ordinal()], left.type, left, right, cmpRes)) ;
-                    returnEntity = cmpRes ; // i1
-                // }
-            } else if (leftType.type == basicType.String) {
-                typeCasting((register) left, new IRPointerType(new IRIntType(8))) ;
-                register leftString = (register) returnEntity ;
-                typeCasting((register) right, new IRPointerType(new IRIntType(8))) ;
-                register rightString = (register) returnEntity ;
-                if (it.binaryOp == binaryOperator.Equal) {
-                    register res = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-                    functioncall func = new functioncall("string_equal", res.type, res) ;
-                    func.parameters.add(leftString); func.parameters.add(rightString) ;
-                    currentBlock.push_back(func) ;
-                    returnEntity = res ;
-                } else if (it.binaryOp == binaryOperator.NotEqual) {
-                    register res = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-                    functioncall func = new functioncall("string_notEqual", res.type, res) ;
-                    func.parameters.add(leftString); func.parameters.add(rightString) ;
-                    currentBlock.push_back(func) ;
-                    returnEntity = res ;
-                } else if (it.binaryOp == binaryOperator.Less) {
-                    register res = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-                    functioncall func = new functioncall("string_less", res.type, res) ;
-                    func.parameters.add(leftString); func.parameters.add(rightString) ;
-                    currentBlock.push_back(func) ;
-                    returnEntity = res ;
-                } else if (it.binaryOp == binaryOperator.Greater) {
-                    register res = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-                    functioncall func = new functioncall("string_greater", res.type, res) ;
-                    func.parameters.add(leftString); func.parameters.add(rightString) ;
-                    currentBlock.push_back(func) ;
-                    returnEntity = res ;
-                } else if (it.binaryOp == binaryOperator.LessEqual) {
-                    register res = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-                    functioncall func = new functioncall("string_lessEqual", res.type, res) ;
-                    func.parameters.add(leftString); func.parameters.add(rightString) ;
-                    currentBlock.push_back(func) ;
-                    returnEntity = res ;
-                } else if (it.binaryOp == binaryOperator.GreaterEqual) {
-                    register res = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-                    functioncall func = new functioncall("string_greaterEqual", res.type, res) ;
-                    func.parameters.add(leftString); func.parameters.add(rightString) ;
-                    currentBlock.push_back(func) ;
-                    returnEntity = res ;
-                }
-            } else if (leftType.type == basicType.Null || rightType.type == basicType.Null) {
-                register res = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-                IRType tmpType = leftType.type == basicType.Null ? right.type : left.type ;
-                currentBlock.push_back(new binary(IROperator.values()[it.binaryOp.ordinal()], tmpType, left, right, res)) ;
-                returnEntity = res ;
-            }
-        } else if (it.binaryOp == binaryOperator.Assign) {
-            it.leftExpression.accept(this) ;
-            Type leftType = it.leftExpression.type ;
-            entity left = returnEntity ;
-            it.rightExpression.accept(this) ;
-            Type rightType = it.rightExpression.type ;
-            entity right = returnEntity ;
-            if (returnEntity.isLvalue) {
-                right = new register(curFunction.curRegisterID ++, ((IRPointerType) right.type).type) ;
-                currentBlock.push_back(new load(right.type, returnEntity, right));
-            }
-            if (right instanceof register) typeCasting((register) right, ((IRPointerType) left.type).type) ;
-            currentBlock.push_back(new store(((IRPointerType) left.type).type, returnEntity, left));
-            returnEntity = right ;
-        } else if (it.binaryOp == binaryOperator.Dot) {
-            boolean isFunctionIDBackup = isFunctionID ;
-            isFunctionID = false; it.leftExpression.accept(this); isFunctionID = isFunctionIDBackup ;
-            Type leftType = it.leftExpression.type ;
-            entity left = returnEntity ;
-            if (leftType.dim > 0) {
-                if (curFuncCall != null) {
-                    register leftValue = new register(curFunction.curRegisterID ++, ((IRPointerType)left.type).type) ;
-                    currentBlock.push_back(new load(leftValue.type, left, leftValue));
-                    curFuncCall.parameters.add(leftValue) ;
-                }
-                register curClassBackup = curClass ;
-                IRClassType curClassTypeBackup = curClassType ;
-                curClass = null; curClassType = null ;
-                globalScope gScopeBackup = gScope ;
-                Scope curScopeBackup = curScope ;
-                gScope = (globalScope)gScope.getScopeFromClassName(it.pos, "__Array") ;
-                curScope = gScope ;
-                it.rightExpression.accept(this) ;
-                gScope = gScopeBackup; curScope = curScopeBackup ;
-                curClass = curClassBackup; curClassType = curClassTypeBackup ;
-            } else if (leftType.type == basicType.Class || leftType.type == basicType.This) {
-                register curClassBackup = curClass ;
-                IRClassType curClassTypeBackup = curClassType ;
-                boolean hasAddFunctionNameBackup = hasAddFunctionName ;
-                if (left.isLvalue) {
-                    register classValue = new register(curFunction.curRegisterID ++, ((IRPointerType)left.type).type) ;
-                    currentBlock.push_back(new load(classValue.type, left, classValue)) ;
-                    curClass = classValue ;
-                } else {
-                    curClass = (register) left ;
-                }
-                // curClass = (register) left ;
-                String className ;
-                className = ((IRClassType)((IRPointerType)curClass.type).type).className ;
-                curClassType = new IRClassType(className) ;
-                if (curFuncCall != null && isFunctionID) {
-                    hasAddFunctionName = true ;
-                    curFuncCall.functionName += "class" + curClassType.className + "_" ;
-                    curFuncCall.parameters.add(curClass) ;
-                } 
-                globalScope gScopeBackup = gScope ;
-                Scope curScopeBackup = curScope ;
-                gScope = (globalScope)gScope.getScopeFromClassName(it.pos, className) ;
-                curScope = gScope ;
-                it.rightExpression.accept(this) ;
-                gScope = gScopeBackup; curScope = curScopeBackup ;
-                curClass = curClassBackup; curClassType = curClassTypeBackup;
-                hasAddFunctionName = hasAddFunctionNameBackup ;
-            } else if (leftType.type == basicType.String) {
-                if (curFuncCall != null) {
-                    if (!left.isLvalue) {
-                        curFuncCall.parameters.add(left) ;
-                    } else {
-                        register leftValue = new register(curFunction.curRegisterID ++, ((IRPointerType)left.type).type) ;
-                        currentBlock.push_back(new load(leftValue.type, left, leftValue));
-                        curFuncCall.parameters.add(leftValue) ;
-                    }
-                }
-                globalScope gScopeBackup = gScope ;
-                Scope curScopeBackup = curScope ;
-                gScope = (globalScope)gScope.getScopeFromClassName(it.pos, "string") ;
-                curScope = gScope ;
-                it.rightExpression.accept(this) ;
-                gScope = gScopeBackup; curScope = curScopeBackup ;
-            }
-        } else if (it.binaryOp == binaryOperator.AndAnd) {
-            it.leftExpression.accept(this) ;
-            if (returnEntity.isLvalue) {
-                register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                currentBlock.push_back(new load(value.type, returnEntity, value));
-                returnEntity = value ;
-            }
-            label curLabel = new label(currentBlock.identifier) ;
-            label trueLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_AndAnd_true") ;
-            block trueBlock = new block(trueLabel.labelID) ;
-            label outLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_AndAnd_out") ;
-            block outBlock = new block(outLabel.labelID) ;
-            if (returnEntity instanceof constant) {
-                int value = ((constant) returnEntity).value ;
-                if (value == 1) currentBlock.push_back(new branch(trueLabel));
-                else currentBlock.push_back(new branch(outLabel));
-            } else {
-                typeCasting((register) returnEntity, new IRIntType(1));
-                currentBlock.push_back(new branch(returnEntity, trueLabel, outLabel)) ;
-            }
-            currentBlock = trueBlock ;
-            it.rightExpression.accept(this) ;
-            if (returnEntity.isLvalue) {
-                register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                currentBlock.push_back(new load(value.type, returnEntity, value));
-                returnEntity = value ;
-            }
-            if (returnEntity instanceof register) typeCasting((register) returnEntity, new IRIntType(1)) ;
-            currentBlock.push_back(new branch(outLabel)) ;
-            currentBlock = outBlock ;
-            register returnReg = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-            phi phiStmt = new phi(returnReg, new IRIntType(1)) ;
-            phiStmt.labels.add(curLabel); phiStmt.value.add(new constant(0, new IRIntType(1))) ;
-            phiStmt.labels.add(trueLabel); phiStmt.value.add (returnEntity) ;
-            currentBlock.push_back(phiStmt) ;
-            curFunction.blocks.add(trueBlock); curFunction.blocks.add(outBlock) ;
-            returnEntity = returnReg ;
-        } else if (it.binaryOp == binaryOperator.OrOr) {
-            it.leftExpression.accept(this) ;
-            if (returnEntity.isLvalue) {
-                register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                currentBlock.push_back(new load(value.type, returnEntity, value));
-                returnEntity = value ;
-            }
-            label curLabel = new label(currentBlock.identifier) ;
-            label outLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_OrOr_out") ;
-            block outBlock = new block(outLabel.labelID) ;
-            label falseLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_OrOr_false") ;
-            block falseBlock = new block(falseLabel.labelID) ;
-            if (returnEntity instanceof register) typeCasting((register) returnEntity, new IRIntType(1));
-            currentBlock.push_back(new branch(returnEntity, outLabel, falseLabel)) ;
-            currentBlock = falseBlock ;
-            it.rightExpression.accept(this) ;
-            if (returnEntity.isLvalue) {
-                register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                currentBlock.push_back(new load(value.type, returnEntity, value));
-                returnEntity = value ;
-            }
-            if (returnEntity instanceof register) typeCasting((register) returnEntity, new IRIntType(1));
-            currentBlock.push_back(new branch(outLabel)) ;
-            currentBlock = outBlock ;
-            register returnReg = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-            phi phiStmt = new phi(returnReg, new IRIntType(1)) ;
-            phiStmt.labels.add(curLabel); phiStmt.value.add(new constant(1, new IRIntType(1))) ;
-            phiStmt.labels.add(falseLabel); phiStmt.value.add (returnEntity) ;
-            currentBlock.push_back(phiStmt) ;
-            curFunction.blocks.add(falseBlock); curFunction.blocks.add(outBlock) ;
-            returnEntity = returnReg ;
-        }
-    }
-
-    @Override
-    public void visit (bracketExprNode it) {
-        it.expression.accept(this) ;
-    }
-
-    @Override
-    public void visit (breakStmtNode it) {
-        currentBlock.push_back(new branch(flowController.loopOutLabel.peek()));
-    }
-
-    @Override
-    public void visit (builtinTypeNode it) {}
-
-    @Override
-    public void visit (classConstructorNode it) {
-        function constructorFunc = new function(it.name) ;
-        constructorFunc.returnType = new IRVoidType() ;
-        curFunction = constructorFunc ;
-        currentBlock = curFunction.rootBlock ;
-        register parameterReg = new register(curFunction.curRegisterID ++, new IRPointerType(curClassType)) ;
-        curFunction.parameterId.add("__class_ptr") ;
-        curFunction.parameters.add (parameterReg) ;
-        register copyReg = new register(curFunction.curRegisterID ++, new IRPointerType(parameterReg.type)) ;
-        // currentBlock.push_back(new alloca(copyReg, parameterReg.type)) ;
-        curFunction.allocaInst.add(new alloca(copyReg, parameterReg.type)) ;
-        currentBlock.push_back(new store(copyReg.type, parameterReg, copyReg));
-        flowController = new FlowController(it.name) ;
-        // curClass = copyReg ;
-        curClass = parameterReg ;
-        it.suite.accept(this) ;
-        curClass = null ;
-        currentBlock.push_back(new branch(new label(curFunction.returnBlock.identifier)));
-        currentBlock = curFunction.returnBlock ;
-        currentBlock.push_back(new returnStmt(new register(0, new IRVoidType())));
-        curFunction.blocks.add(curFunction.returnBlock) ;
-        currentBlock = curFunction.allocaBlock ;
-        for (alloca allocaInst : curFunction.allocaInst) currentBlock.push_back(allocaInst) ;
-        globalDef.functions.add(constructorFunc) ;
-    }
-
-    @Override
-    public void visit (classDefNode it) {
-        curScope = ((globalScope) curScope).getScopeFromClassName(it.pos, it.name) ;
-        gScope = (globalScope) curScope ;
-        isClassDefine = true ;
-        IRClassType classType = new IRClassType(it.name) ;
-        curClassType = classType ;
-        it.varDef.forEach(x -> x.accept(this)) ;
-        if (it.classConstructor != null) it.classConstructor.accept(this) ;
-        else {
-            function constructorFunc = new function(it.name) ;
-            constructorFunc.returnType = new IRVoidType() ;
-            curFunction = constructorFunc ;
-            currentBlock = curFunction.rootBlock ;
-            register parameterReg = new register(curFunction.curRegisterID ++, new IRPointerType(curClassType)) ;
-            curFunction.parameterId.add("__class_ptr") ;
-            curFunction.parameters.add (parameterReg) ;
-            register copyReg = new register(curFunction.curRegisterID ++, new IRPointerType(parameterReg.type)) ;
-            // currentBlock.push_back(new alloca(copyReg, parameterReg.type)) ;
-            curFunction.allocaInst.add(new alloca(copyReg, parameterReg.type)) ;
-            currentBlock.push_back(new store(copyReg.type, parameterReg, copyReg));
-            currentBlock.push_back(new branch(new label(curFunction.returnBlock.identifier)));
-            currentBlock = curFunction.returnBlock ;
-            currentBlock.push_back(new returnStmt(new register(0, new IRVoidType())));
-            curFunction.blocks.add(curFunction.returnBlock) ;
-            currentBlock = curFunction.allocaBlock ;
-            for (alloca inst : curFunction.allocaInst) currentBlock.push_back(inst) ;
-            globalDef.functions.add(constructorFunc) ;
-            curFunction = null; currentBlock = null ;
-        }
-        it.functionDef.forEach(x -> x.accept(this)) ;
-        globalDef.globalDefStmt.add(new structDefine(classType)) ;
-        gScope = (globalScope) gScope.parentScope() ;
-        curScope = curScope.parentScope() ;
-        gScope.classType.put(it.name, curClassType) ;
-        isClassDefine = false ;
-        curClassType = null ;
-    }
-
-    @Override
-    public void visit (continueStmtNode it) {
-        if (flowController.loopIncrLabel.peek() != null) currentBlock.push_back(new branch(flowController.loopIncrLabel.peek()));
-        else currentBlock.push_back(new branch(flowController.loopConditionLabel.peek()));
-    }
-
-    @Override
-    public void visit (expressionListNode it) {
-        if (it.expressions.isEmpty()) return ;
-        int offset = curFuncCallParameters.size() - it.expressions.size() ;
-        for (int i = 0; i < it.expressions.size(); i ++) {
-            it.expressions.get(i).accept(this) ;
-            if (returnEntity.isLvalue) {
-                register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                currentBlock.push_back(new load(value.type, returnEntity, value));
-                returnEntity = value ;
-            }
-            if (returnEntity instanceof register) typeCasting((register) returnEntity, curFuncCallParameters.get(i + offset));
-            curFuncCall.parameters.add(returnEntity) ;
-        }
-    }
-
-    @Override
-    public void visit (forConditionNode it) {
-        it.expression.accept(this) ;
-        if (returnEntity instanceof register) {
-            // register i1Reg = new register(0, new IRIntType(1)) ;
-            typeCasting((register) returnEntity, new IRIntType(1)) ;
-            // returnEntity = i1Reg ;
-        }
-    }
-
-    @Override
-    public void visit (forIncrNode it) {
-        it.expression.accept(this) ;
-    }
-
-    @Override
-    public void visit (forInitNode it) {
-        if (it.varDef != null) it.varDef.accept(this) ;
-        if (it.expression != null) it.expression.accept(this) ;
-    }
-
-    @Override
-    public void visit (forStmtNode it) {
-        curScope = new Scope (curScope) ;
-        if (it.forInit != null) it.forInit.accept(this) ;
-        
-        label conditionLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_condition") ;
-        // label conditionLabel = new label(curFunction.curRegisterID) ;
-        // block conditionBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block conditionBlock = new block(conditionLabel.labelID);
-        // label suiteLabel = new label(curFunction.curRegisterID) ;
-        label suiteLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_suite") ;
-        // block suiteBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block suiteBlock = new block (suiteLabel.labelID) ;
-        // label incrLabel = new label(curFunction.curRegisterID) ;
-        label incrLabel = new label (curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_incr") ;
-        // block incrBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block incrBlock = new block (incrLabel.labelID) ;
-        // label forOutLabel = new label(curFunction.curRegisterID) ;
-        label forOutLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_out") ;
-        // block forOutBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block forOutBlock = new block(forOutLabel.labelID) ;
-
-        flowController.inLoop(incrLabel, conditionLabel, forOutLabel);
-
-        if (it.forCondition != null) {
-            currentBlock.push_back(new branch(conditionLabel)) ;
-            currentBlock = conditionBlock ;
-            it.forCondition.accept(this) ;
-            if (returnEntity.isLvalue) {
-                register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                currentBlock.push_back(new load(value.type, returnEntity, value));
-                returnEntity = value ;
-            }
-            entity conditionReg = returnEntity ;
-            currentBlock.push_back(new branch(conditionReg, suiteLabel, forOutLabel));
-            curFunction.blocks.add(conditionBlock) ;
-        } else {
-            currentBlock.push_back(new branch(suiteLabel)) ;
-        }
-        
-        currentBlock = suiteBlock ;
-        curFunction.blocks.add (suiteBlock) ;
-        it.statement.accept(this) ;
-
-        if (it.forIncr != null) {
-            currentBlock.push_back(new branch(incrLabel));
-            currentBlock = incrBlock ;
-            it.forIncr.accept(this) ;
-            if (it.forCondition != null) currentBlock.push_back(new branch(conditionLabel));
-            else currentBlock.push_back(new branch (suiteLabel)) ;
-            curFunction.blocks.add(incrBlock) ;
-        } else {
-            if (it.forCondition != null) currentBlock.push_back(new branch(conditionLabel));
-            else currentBlock.push_back(new branch (suiteLabel)) ;
-        }
-        
-        flowController.outLoop(true) ;
-        currentBlock = forOutBlock ;
-        curFunction.blocks.add (forOutBlock) ;
-        curScope = curScope.parentScope() ;
-    }
-
-    @Override
-    public void visit (functionCallExprNode it) {
-        boolean isFunctionIDBackup = isFunctionID ;
-        isFunctionID = true;
-        functioncall funcCallBackup = curFuncCall ;
-        ArrayList<IRType> parametersBackup = curFuncCallParameters ;
-        curFuncCall = new functioncall() ;
-        it.functionIdentifier.accept(this) ;
-        isFunctionID = isFunctionIDBackup ;
-        // curFuncCallParameters = gScope.getIRParametersFromFunctionName(it.pos, curFuncCall.functionName) ;
-        it.expressionList.accept(this) ;
-        if (curFuncCall.functionName.equals("size")) {
-            register arrayReg = (register) curFuncCall.parameters.get(0) ;
-            register headPtr = new register(curFunction.curRegisterID ++, new IRPointerType(new IRIntType(32))) ;
-            currentBlock.push_back(new bitcast(arrayReg, headPtr, headPtr.type)) ;
-            register sizePtr = new register(curFunction.curRegisterID ++, new IRPointerType(new IRIntType(32))) ;
-            getelementptr offset = new getelementptr(headPtr, sizePtr) ;
-            offset.value.add(new constant(-1, new IRIntType(8))) ;
-            currentBlock.push_back(offset);
-            register sizeValue = new register (curFunction.curRegisterID ++, new IRIntType(32)) ;
-            currentBlock.push_back(new load(sizeValue.type, sizePtr, sizeValue)) ;
-            returnEntity = sizeValue ;
-        } else {
-            register destReg = new register(curFunction.curRegisterID ++, curFuncCall.returnType) ;
-            curFuncCall.destReg = destReg ;
-            currentBlock.push_back(curFuncCall) ;
-            returnEntity = destReg ;
-        }
-        curFuncCall = funcCallBackup ;
-        curFuncCallParameters = parametersBackup ;
-    }
-
-    @Override
-    public void visit (functionDefNode it) {
-        function newFunc ;
-        if (isClassDefine) newFunc = new function("class" + curClassType.className + "_" + it.name) ;
-        else newFunc = new function(it.name) ;
-        currentBlock = newFunc.rootBlock ;
-        if (it.functionType.isVoid == true) newFunc.returnType = new IRVoidType() ;
-        else {
-            newFunc.returnType = toIRType(it.functionType.type.type) ;
-            // if (it.functionType.type.type.dim > 0 || it.functionType.type.type.type == basicType.Class)
-                // newFunc.returnType = new IRPointerType (newFunc.returnType) ;
-        }
-        // label functionEntryLabel = new label(newFunc.identifier + "_entry") ;
-        // currentBlock.identifier = functionEntryLabel.labelID ;
-        curFunction = newFunc ;
-        globalDef.functions.add(newFunc) ;
-        flowController = new FlowController(it.name) ;
-        curScope = gScope.getScopeFromFunctionName(it.pos, it.name) ;
-        if (newFunc.identifier.equals("main")) {
-            currentBlock.push_back(new functioncall("__init")) ;
-        }
-        ArrayList<IRType> IRparameters = new ArrayList<>() ;
-        if (isClassDefine) {
-            register parameterReg = new register(curFunction.curRegisterID ++, new IRPointerType(curClassType)) ;
-            curFunction.parameterId.add("__class_ptr") ;
-            curFunction.parameters.add (parameterReg) ;
-            IRparameters.add(parameterReg.type) ;
-        }
-        it.parameters.accept(this) ;
-        for (int i = 0; i < curFunction.parameters.size(); i ++) {
-            register parameterReg = curFunction.parameters.get(i) ;
-            IRparameters.add (parameterReg.type) ;
-            register copyReg = new register(curFunction.curRegisterID ++, new IRPointerType (parameterReg.type)) ;
-            copyReg.isLvalue = true ;
-            // currentBlock.push_back(new alloca(copyReg, parameterReg.type)) ;
-            curFunction.allocaInst.add(new alloca(copyReg, parameterReg.type)) ;
-            currentBlock.push_back(new store(copyReg.type, parameterReg, copyReg));
-            curScope.entities.put(curFunction.parameterId.get(i), copyReg) ;
-            if (isClassDefine && i == 0) {
-                register classValue = new register (curFunction.curRegisterID ++, ((IRPointerType) copyReg.type).type) ;
-                currentBlock.push_back(new load(classValue.type, copyReg, classValue));
-                // curClass = copyReg ;
-                curClass = classValue ;
-            }
-        }
-        // gScope.functionIRParameters.put (curFunction.identifier, IRparameters) ;
-        register returnReg = new register(curFunction.curRegisterID ++, new IRPointerType (curFunction.returnType)) ;
-        curFunction.returnReg = returnReg ;
-        if (!(curFunction.returnType instanceof IRVoidType)) {
-            // currentBlock.push_back(new alloca(returnReg, curFunction.returnType)) ;
-            curFunction.allocaInst.add(new alloca(returnReg, curFunction.returnType)) ;
-            if (curFunction.identifier.equals("main")) currentBlock.push_back(new store(curFunction.returnType, new constant (0, new IRIntType(32)), returnReg));
-        }
-        it.suite.accept(this) ;
-        currentBlock.push_back(new branch(new label(curFunction.returnBlock.identifier))) ;
-        curFunction.blocks.add(curFunction.returnBlock) ;
-        currentBlock = curFunction.returnBlock ;
-        if (curFunction.returnType instanceof IRVoidType) currentBlock.push_back(new returnStmt(new register (0, new IRVoidType()))) ;
-        else {
-            register reg = new register(curFunction.curRegisterID ++, curFunction.returnType) ;
-            currentBlock.push_back(new load(reg.type, curFunction.returnReg, reg)) ;
-            currentBlock.push_back(new returnStmt(reg)) ;
-        }
-        currentBlock = curFunction.allocaBlock ;
-        for (alloca curAlloca : curFunction.allocaInst) currentBlock.push_back(curAlloca) ;
-        currentBlock.push_back(new branch(new label(curFunction.rootBlock.identifier)));
-        curScope = curScope.parentScope() ;
-        if (curClass != null) curClass = null ;
-        curFunction = null; currentBlock = null;
-    }
-
-    @Override
-    public void visit (functionParameterDefNode it) {
-        it.parameters.forEach(x -> {
-            x.accept(this) ;
-            curFunction.parameters.add ((register) returnEntity) ;
-        }) ;
-    }
-    
-    @Override
-    public void visit (functionTypeNode it) {}
-
-    @Override
-    public void visit (globalVarDefNode it) {
-        isGlobalDef = true ;
-        it.varDef.accept(this) ;
-        isGlobalDef = false ;
-    }
-
-    @Override
-    public void visit (ifStmtNode it) {
-        it.expression.accept(this) ;
-        if (returnEntity.isLvalue) {
-            register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-            currentBlock.push_back(new load(value.type, returnEntity, value));
-            returnEntity = value ;
-        }
-        if (returnEntity instanceof register) {
-            // register i1Reg = new register(0, new IRIntType(1)) ;
-            typeCasting((register) returnEntity, new IRIntType(1)) ;
-            // returnEntity = i1Reg ;
-        }
-        // label trueLabel = new label(curFunction.curRegisterID) ;
-        label trueLabel = new label (curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_if_true") ;
-        // block trueBranch = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block trueBranch = new block (trueLabel.labelID) ;
-        // label falseLabel = new label(curFunction.curRegisterID) ;
-        label falseLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_if_false") ;
-        // block falseBranch = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block falseBranch = new block(falseLabel.labelID) ;
-        
-        // label ifOutLabel = new label (curFunction.curRegisterID) ;
-        label ifOutLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_if_out") ;
-        // block ifOutBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block ifOutBlock = new block(ifOutLabel.labelID) ;
-        if (it.falseStatement != null) currentBlock.push_back(new branch(returnEntity, trueLabel, falseLabel));
-        else currentBlock.push_back(new branch(returnEntity, trueLabel, ifOutLabel));
-        currentBlock = trueBranch ;
-        curScope = new Scope (curScope) ;
-        it.trueStatement.accept(this) ;
-        currentBlock.push_back(new branch(ifOutLabel)) ;
-        curScope = curScope.parentScope() ;
-        if (it.falseStatement != null) {
-            currentBlock = falseBranch ;
-            curScope = new Scope(curScope) ;
-            it.falseStatement.accept(this) ;
-            currentBlock.push_back(new branch(ifOutLabel));
-            curScope = curScope.parentScope() ;
-        }
-        currentBlock = ifOutBlock ;
-
-        curFunction.blocks.add(trueBranch); 
-        if (it.falseStatement != null) curFunction.blocks.add(falseBranch) ;
-        curFunction.blocks.add(ifOutBlock) ;
-    }
-
-    @Override
-    public void visit (lambdaStmtNode it) {}
-
-    @Override
-    public void visit (newSizeNode it) {}
-
-    private entity mallocArray (ArrayList<entity> newEntities, int cur, IRType baseType) {
-        int dim = newEntities.size() - cur ;
-        IRType curIRType = baseType ;
-        for (int i = 0; i < dim; i ++)
-            curIRType = new IRPointerType (curIRType) ;
-        entity arraySizeEntity = newEntities.get (cur) ;
-        entity arraySize = arraySizeEntity ;
-        if (!(arraySizeEntity instanceof constant)) {
-            arraySize = new register (curFunction.curRegisterID ++, new IRIntType (64)) ;
-            currentBlock.push_back(new zext ((register) arraySizeEntity, (register) arraySize, arraySizeEntity.type, arraySize.type));
-        }
-        int singleSize = ((IRPointerType) curIRType).type.size ;
-        register mallocSize = new register (curFunction.curRegisterID ++, new IRIntType (64)) ;
-        currentBlock.push_back(new binary(IROperator.mul, mallocSize.type, arraySize, new constant(singleSize, new IRIntType(64)), mallocSize)) ;
-        register mallocSizePlus4 = new register (curFunction.curRegisterID ++, new IRIntType (64)) ;
-        currentBlock.push_back(new binary(IROperator.add, mallocSizePlus4.type, mallocSize, new constant (4, new IRIntType(64)), mallocSizePlus4)) ;
-        register mallocPtr = new register (curFunction.curRegisterID ++, new IRPointerType(new IRIntType (8))) ;
-        functioncall mallocFuncCall = new functioncall("malloc", mallocPtr.type, mallocPtr) ;
-        mallocFuncCall.parameters.add(mallocSizePlus4) ;
-        currentBlock.push_back(mallocFuncCall) ;
-        register mallocPtr32 = new register (curFunction.curRegisterID ++, new IRPointerType(new IRIntType (32))) ;
-        currentBlock.push_back(new bitcast (mallocPtr, mallocPtr32, mallocPtr32.type));
-        currentBlock.push_back(new store(arraySizeEntity.type, arraySizeEntity, mallocPtr32)) ;
-        register arrayHeadPtr = new register(curFunction.curRegisterID ++, mallocPtr32.type) ;
-        getelementptr offset = new getelementptr(mallocPtr32, arrayHeadPtr) ;
-        offset.value.add(new constant (1, new IRIntType (32))) ;
-        currentBlock.push_back(offset) ;
-        register curArrayPtr = new register (curFunction.curRegisterID ++, curIRType) ;
-        currentBlock.push_back(new bitcast(arrayHeadPtr, curArrayPtr, curArrayPtr.type)) ;
-
-        if (dim == 1) return curArrayPtr ;
-
-        register loopVar = new register(curFunction.curRegisterID ++, new IRPointerType (new IRIntType (32))) ;
-        // currentBlock.push_back(new alloca(loopVar, new IRIntType (32)));
-        curFunction.allocaInst.add(new alloca(loopVar, new IRIntType (32))) ;
-        currentBlock.push_back(new store(new IRIntType(32), new constant (0, new IRIntType(32)), loopVar));
-        label conditionLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_condition") ;
-        block conditionBlock = new block(conditionLabel.labelID);
-        label suiteLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_suite") ;
-        block suiteBlock = new block (suiteLabel.labelID) ;
-        label incrLabel = new label (curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_incr") ;
-        block incrBlock = new block (incrLabel.labelID) ;
-        label forOutLabel = new label(curFunction.identifier + "_ID" + (curFunction.curRegisterID - 1) + "_for_out") ;
-        block forOutBlock = new block(forOutLabel.labelID) ;
-        currentBlock.push_back(new branch (conditionLabel)) ;
-
-        curFunction.blocks.add(conditionBlock) ;
-        // condition block
-        currentBlock = conditionBlock ;
-        register loopVarValue = new register (curFunction.curRegisterID ++, new IRIntType (32)) ;
-        currentBlock.push_back(new load(loopVarValue.type, loopVar, loopVarValue)) ;
-        entity curLimit = newEntities.get(cur) ;
-        register cmpResValue = new register (curFunction.curRegisterID ++, new IRIntType(1)) ;
-        currentBlock.push_back(new binary(IROperator.slt, loopVarValue.type, loopVarValue, curLimit, cmpResValue)) ;
-        currentBlock.push_back(new branch(cmpResValue, suiteLabel, forOutLabel)) ;
-        
-        curFunction.blocks.add (suiteBlock) ;
-        // suite block
-        currentBlock = suiteBlock ;
-        loopVarValue = new register (curFunction.curRegisterID ++, new IRIntType (32)) ;
-        currentBlock.push_back(new load(loopVarValue.type, loopVar, loopVarValue)) ;
-        register nxtArrayPtr = new register (curFunction.curRegisterID ++, curIRType) ;
-        getelementptr getPtr = new getelementptr (curArrayPtr, nxtArrayPtr) ;
-        getPtr.value.add(loopVarValue) ;
-        currentBlock.push_back(getPtr) ;
-        entity nxtArray = mallocArray(newEntities, cur + 1, baseType) ;
-        currentBlock.push_back(new store(nxtArray.type, nxtArray, nxtArrayPtr)) ;
-        currentBlock.push_back(new branch (incrLabel)) ;
-
-        curFunction.blocks.add (incrBlock) ;
-        // incr block
-        currentBlock = incrBlock ;
-        loopVarValue = new register (curFunction.curRegisterID ++, new IRIntType (32)) ;
-        currentBlock.push_back(new load(loopVarValue.type, loopVar, loopVarValue)) ;
-        register nxtLoopVarValue = new register (curFunction.curRegisterID ++, new IRIntType (32)) ;
-        currentBlock.push_back(new binary(IROperator.add, loopVarValue.type, loopVarValue, new constant (1, new IRIntType (32)), nxtLoopVarValue)) ;
-        currentBlock.push_back(new store(loopVar.type, nxtLoopVarValue, loopVar)) ;
-        currentBlock.push_back(new branch (conditionLabel)) ;
-
-        curFunction.blocks.add (forOutBlock) ;
-        currentBlock = forOutBlock ;
-
-        return curArrayPtr ;
-    }
-
-    @Override
-    public void visit (newVarNode it) {
-        Type curType = it.type ;
-        IRType curIRType = toIRType(curType) ;
-        int curIRTypeSize = curIRType.size ;
-        if (it.newSize.size() == 0) {
-            curIRType = ((IRPointerType)curIRType).type ;
-            curIRType.size = curIRTypeSize ;
-            register mallocReg = new register(curFunction.curRegisterID ++, new IRPointerType(new IRIntType(8))) ;
-            functioncall mallocFuncCall = new functioncall("malloc", mallocReg.type, mallocReg) ;
-            mallocFuncCall.parameters.add(new constant(curIRType.size, new IRIntType(64))) ;
-            currentBlock.push_back(mallocFuncCall) ;
-            register returnReg = new register(curFunction.curRegisterID ++, new IRPointerType(curIRType)) ;
-            currentBlock.push_back(new bitcast(mallocReg, returnReg, returnReg.type)) ;
-            functioncall classConstructFunc = new functioncall (it.type.Identifier) ;
-            classConstructFunc.parameters.add (returnReg) ;
-            currentBlock.push_back(classConstructFunc) ;
-            returnEntity = returnReg ;
-        } else {
-            ArrayList<entity> newEntities = new ArrayList<>() ;
-            it.newSize.forEach(x -> {
-                if (x.expression == null) return ;
-                x.expression.accept(this) ;
-                if (returnEntity.isLvalue) {
-                    register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                    currentBlock.push_back(new load(value.type, returnEntity, value));
-                    returnEntity = value ;
-                }
-                newEntities.add(returnEntity) ;
-            });
-            Type baseType = new Type (curType) ;
-            baseType.dim = 0 ;
-            IRType baseIRType = toIRType(baseType) ;
-            for (int i = newEntities.size(); i < it.newSize.size(); i ++)
-                baseIRType = new IRPointerType(baseIRType) ;
-            returnEntity = mallocArray (newEntities, 0, baseIRType) ;
-        }
-    }
-
-    @Override
-    public void visit (parameterNode it) {
-        IRType curIRType = toIRType(it.type.type) ;
-        register curParameter = new register(curFunction.curRegisterID ++, curIRType) ;
-        // curScope.entities.put(it.name, curParameter) ;
-        curFunction.parameterId.add(it.name) ;
-        returnEntity = curParameter ;
-    }
-
-    @Override
-    public void visit (postIncExprNode it) {
-        it.expression.accept(this) ; // isLvalue
-        register varCopy = new register(curFunction.curRegisterID ++, ((IRPointerType) returnEntity.type).type) ;
-        currentBlock.push_back(new load(varCopy.type, returnEntity, varCopy)) ;
-        register resReg = new register(curFunction.curRegisterID ++, new IRIntType(32)) ;
-        if (it.postIncOp == postIncOperator.SelfPlus) currentBlock.push_back(new binary(IROperator.add, varCopy.type, varCopy, new constant(1, new IRIntType(32)), resReg)) ;
-        else currentBlock.push_back(new binary(IROperator.sub, varCopy.type, varCopy, new constant(1, new IRIntType(32)), resReg)) ;
-        currentBlock.push_back(new store(varCopy.type, resReg, returnEntity)) ;
-        returnEntity = varCopy ;
-    }
-
-    @Override
-    public void visit (preIncExprNode it) {
-        it.expression.accept(this); // isLvalue ;
-        register varCopy = new register(curFunction.curRegisterID ++, ((IRPointerType) returnEntity.type).type) ;
-        currentBlock.push_back(new load(varCopy.type, returnEntity, varCopy)) ;
-        register resReg = new register(curFunction.curRegisterID ++, new IRIntType(32)) ;
-        if (it.preIncOp == preIncOperator.SelfPlus) currentBlock.push_back(new binary(IROperator.add, varCopy.type, varCopy, new constant(1, new IRIntType(32)), resReg)) ;
-        else currentBlock.push_back(new binary(IROperator.sub, varCopy.type, varCopy, new constant(1, new IRIntType(32)), resReg)) ;
-        currentBlock.push_back(new store(varCopy.type, resReg, returnEntity)) ;
-        returnEntity.isLvalue = true ;
-    }
-
-    @Override
-    public void visit (primaryNode it) {
-        if (it.type == primaryType.Int) {
-            returnEntity = new constant(Integer.parseInt(it.identifier), new IRIntType(32)) ;
-        } else if (it.type == primaryType.Bool) {
-            if (it.identifier.equals(new String("true"))) {
-                returnEntity = new constant(1, new IRIntType(8)) ;
-            } else {
-                returnEntity = new constant(0, new IRIntType(8)) ;
-            }
-        } else if (it.type == primaryType.Null) {
-            returnEntity = new register(0, new IRNullType()) ;
-        } else if (it.type == primaryType.This) {
-            returnEntity = curClass ;
-        } else if (it.type == primaryType.String) {
-            String str = it.identifier.substring(1, it.identifier.length() - 1) ;
-            str = str.replace("\\\\", "\\") ;
-            str = str.replace("\\n", "\n") ;
-            str = str.replace("\\\"", "\"") ;
-            str = str + "\0" ;
-            globalStringConstantStmt curStmt = new globalStringConstantStmt(str) ;
-            globalDef.globalDefStmt.add(curStmt) ;
-            returnEntity = curStmt.reg ;
-        } else {
-            if (it.type == primaryType.Identifier) {
-                if (isFunctionID) {
-                    Type functionReturnType = gScope.getReturnTypeFromFunctionName(it.pos, it.identifier) ;
-                    IRType functionReturnIRType = toIRType(functionReturnType) ;
-                    // if (functionReturnType.dim > 0 || functionReturnType.type == basicType.Class)
-                        // functionReturnIRType = new IRPointerType(functionReturnIRType) ;
-                    // functioncall fcall ;
-                    if (curClass != null && !hasAddFunctionName && gScope.getFunctionInClass(it.pos, it.identifier)) {
-                        curFuncCall.functionName += "class" + curClassType.className + "_" ;
-                        // register classValue = new register(curFunction.curRegisterID ++, ((IRPointerType)curClass.type).type) ;
-                        // currentBlock.push_back(new load(classValue.type, curClass, classValue)); 
-                        // curFuncCall.parameters.add(classValue) ;
-                        curFuncCall.parameters.add(curClass) ;
-                    }
-                    if (functionReturnType.type == Type.basicType.Void) {
-                        // fcall = new functioncall(identifier) ;
-                        curFuncCall.realFunctionName = new String (it.identifier) ;
-                        curFuncCall.functionName += it.identifier ;
-                        curFuncCall.isVoid = true ;
-                    } else {
-                        // register returnReg = new register(curFunction.curRegisterID ++, toIRType(functionReturnType)) ;
-                        // fcall = new functioncall(identifier, functionReturnIRType, null) ;
-                        curFuncCall.realFunctionName = new String (it.identifier) ;
-                        curFuncCall.functionName += it.identifier ;
-                        curFuncCall.returnType = functionReturnIRType ;
-                    }
-                    // curFuncCallParameters = gScope.getIRParametersFromFunctionName(it.pos, curFuncCall.functionName) ;
-                    ArrayList<Type> parameterTypes = gScope.getParametersFromFunctionName(it.pos, curFuncCall.realFunctionName) ;
-                    curFuncCallParameters = new ArrayList<>() ;
-                    for (int i = 0; i < parameterTypes.size(); i ++) {
-                        curFuncCallParameters.add(toIRType(parameterTypes.get(i))) ;
-                    }
-                    // curFuncCall = fcall ;
-                } else {
-                    Integer regID = gScope.memberID.get (it.identifier) ;
-                    if (curClass == null) {
-                        entity variableEntity = curScope.getEntity(it.identifier, true) ;
-                        IRType type = ((IRPointerType) variableEntity.type).type ;
-                        returnEntity = variableEntity ;
-                    } else {
-                        entity variableEntity = curScope.getEntity(it.identifier, true) ;
-                        if (variableEntity != null) {
-                        // if (regID == null) {
-                            IRType type = ((IRPointerType) variableEntity.type).type ;
-                            returnEntity = variableEntity ;
-                        } else {
-                            // register classReg = new register (curFunction.curRegisterID ++, ((IRPointerType)curClass.type).type) ;
-                            // currentBlock.push_back(new load(classReg.type, curClass, classReg));
-                            register returnRegPointer = new register(curFunction.curRegisterID ++, new IRPointerType(toIRType(curScope.getType(it.pos, it.identifier, true)))) ; 
-                            // getelementptr curInst = new getelementptr(classReg, returnRegPointer) ;
-                            getelementptr curInst = new getelementptr(curClass, returnRegPointer) ;
-                            curInst.value.add(new constant(0, new IRIntType(32))) ;
-                            curInst.value.add(new constant(regID.intValue(), new IRIntType(32))) ;
-                            currentBlock.push_back(curInst) ;
-                            returnEntity = returnRegPointer; returnRegPointer.isLvalue = true ;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    @Override
-    public void visit (returnStmtNode it) {
-        if (it.expression != null) it.expression.accept(this) ;
-        // if (!(curFunction.returnType instanceof IRVoidType)) currentBlock.push_back(new returnStmt(returnEntity)) ;
-        if (!(curFunction.returnType instanceof IRVoidType)) {
-            if (returnEntity.isLvalue) {
-                register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                currentBlock.push_back(new load(value.type, returnEntity, value));
-                returnEntity = value ;
-            }
-            if (returnEntity instanceof register) typeCasting((register) returnEntity, curFunction.returnType) ;
-            currentBlock.push_back(new store(returnEntity.type, returnEntity, curFunction.returnReg));
-        }
-        label returnLabel = new label(curFunction.identifier + "_return") ;
-        currentBlock.push_back(new branch(returnLabel)) ;
-        currentBlock.hasJumped = true ;
-    }
-
-    @Override
-    public void visit (RootNode it) {
-        it.statements.forEach(x -> x.accept(this)) ;
-        initCurrentBlock.push_back(new branch(new label(initFunc.returnBlock.identifier)));
-        initFunc.blocks.add (initFunc.returnBlock) ;
-        initCurrentBlock = initFunc.returnBlock ;
-        initCurrentBlock.push_back(new returnStmt(new register(0, new IRVoidType()))) ;
-    }
-
-    @Override
-    public void visit (statementNode it) {
-        if (it.suite != null) {
-            curScope = new Scope(curScope) ;
-            it.suite.accept(this) ;
-            curScope = curScope.parentScope() ;
-        }
-        if (it.varDefstmt != null) it.varDefstmt.accept(this) ;
-        if (it.ifStmt != null) it.ifStmt.accept(this) ;
-        if (it.loopStmt != null) it.loopStmt.accept(this) ;
-        if (it.controlStmt != null) it.controlStmt.accept(this) ;
-        if (it.expression != null) it.expression.accept(this) ;
-    }
-
-    @Override 
-    public void visit (suiteNode it) {
-        it.statementNodes.forEach(x -> x.accept(this)) ;
-    }
-
-    @Override
-    public void visit (unaryExprNode it) {
-        it.expression.accept(this) ;
-        if (returnEntity.isLvalue) {
-            register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-            currentBlock.push_back(new load(value.type, returnEntity, value));
-            returnEntity = value ;
-        }
-        if (it.unaryOp == unaryOperator.Not) {
-            if (returnEntity instanceof register) {
-                // register i1reg = new register(0, new IRIntType(1)) ;
-                typeCasting((register) returnEntity, new IRIntType(1)) ;
-            }
-            register returnReg = new register(curFunction.curRegisterID ++, new IRIntType(1)) ;
-            currentBlock.push_back(new binary(IROperator.xor, new IRIntType(1), returnEntity, new constant(1, new IRIntType(1)), returnReg)) ;
-            returnEntity = returnReg ;
-        } else if (it.unaryOp == unaryOperator.Tilde) {
-            register returnReg = new register(curFunction.curRegisterID ++, new IRIntType(32)) ;
-            currentBlock.push_back(new binary(IROperator.xor, new IRIntType(32), returnEntity, new constant(-1, new IRIntType(32)), returnReg));
-            returnEntity = returnReg ;
-        } else {
-            register returnReg = new register(curFunction.curRegisterID ++, new IRIntType(32)) ;
-            currentBlock.push_back(new binary(IROperator.sub, new IRIntType(32), new constant(0, new IRIntType(32)), returnEntity, returnReg));
-            returnEntity = returnReg ;
-        }
-    }
-
-    @Override
-    public void visit (varDeclarationNode it) {}
-
-    public void typeCasting (register from, IRType toType) {
-        returnEntity = from ;
-        if (from.type instanceof IRIntType && toType instanceof IRIntType) {
-            int fromWidth = ((IRIntType)from.type).width ;
-            int toWidth = ((IRIntType)toType).width ;
-            if (fromWidth == toWidth) return ;
-            register returnReg = new register(curFunction.curRegisterID ++, toType) ;
-            if (fromWidth < toWidth) {
-                currentBlock.push_back(new zext(from, returnReg, from.type, toType));
-            } else if (fromWidth > toWidth) {
-                currentBlock.push_back(new trunc(from, returnReg, from.type, toType));
-            }
-            returnEntity = returnReg ;
-        } else {
-            if (from.type instanceof IRNullType) {
-                ((IRNullType) from.type).toType = toType ;
-                returnEntity = from ;
-            } else {
-                register returnReg = new register(curFunction.curRegisterID ++, toType) ;
-                currentBlock.push_back(new bitcast(from, returnReg, toType));
-                returnEntity = returnReg ;
-            }
-        }
-    }
-
-    @Override
-    public void visit (varDefNode it) {
-        it.typeNode.accept(this) ;
-        Type varType = it.type ;
-        IRType varIRType = toIRType(varType) ;
-        it.varDeclarations.forEach(x -> {
-            if (isClassDefine) {
-                curClassType.classTypes.add(varIRType) ;
-                curClassType.size += varIRType.size ;
-            }
-            if (!isGlobalDef && curFunction != null) {
-                int varRegID = curFunction.curRegisterID ;
-                register varReg = new register(varRegID, new IRPointerType (varIRType)) ;
-                varReg.isLvalue = true ;
-                curScope.entities.put(x.name, varReg) ;
-                // currentBlock.push_back (new alloca(varReg, varIRType));
-                curFunction.allocaInst.add(new alloca(varReg, varIRType)) ;
-                curFunction.curRegisterID ++ ;
-                if (x.isInitialized) {
-                    x.expression.accept(this) ;
-                    if (returnEntity.isLvalue) {
-                        register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                        currentBlock.push_back(new load(value.type, returnEntity, value));
-                        returnEntity = value ;
-                    }
-                    if (varType.dim > 0) varReg.type = new IRPointerType(returnEntity.type) ;
-                    if (returnEntity instanceof register)
-                        typeCasting((register) returnEntity, varIRType);
-                    currentBlock.push_back(new store(varIRType, returnEntity, varReg)) ;
-                }
-                // if (varType.type == Type.basicType.Class) {
-                //     functioncall curFuncCall = new functioncall(it.type.Identifier) ;
-                //     curFuncCall.parameters.add(varReg) ;
-                //     currentBlock.push_back(curFuncCall) ;
-                // }
-            } 
-            if (isGlobalDef) {
-                register reg = new register(x.name, new IRPointerType (varIRType), true) ;
-                reg.isLvalue = true ;
-                curScope.entities.put(x.name, reg) ;
-                if (x.isInitialized) {
-                    initFunc.isEmpty = false ;
-                    curFunction = initFunc ;
-                    currentBlock = initCurrentBlock ;
-                    x.expression.accept(this) ;
-                    if (returnEntity.isLvalue) {
-                        register value = new register(curFunction.curRegisterID ++, ((IRPointerType)returnEntity.type).type) ;
-                        currentBlock.push_back(new load(value.type, returnEntity, value));
-                        returnEntity = value ;
-                    }
-                    if (varType.dim > 0) reg.type = new IRPointerType(returnEntity.type) ;
-                    if (returnEntity instanceof constant)
-                        globalDef.globalDefStmt.add(new globalDefineStmt(reg, (constant) returnEntity)) ;
-                    else {
-                        if (varIRType instanceof IRIntType) globalDef.globalDefStmt.add(new globalDefineStmt(reg, new constant(0, varIRType))) ;
-                        else globalDef.globalDefStmt.add(new globalDefineStmt(reg, new constant(0, new IRNullType()))) ;
-                        typeCasting((register) returnEntity, varIRType) ;
-                        currentBlock.push_back(new store(reg.type, returnEntity, reg));
-                    }
-                    initCurrentBlock = currentBlock ;
-                    curFunction = null; currentBlock = null ;
-                } else {
-                    globalDef.globalDefStmt.add(new globalDefineStmt(reg)) ;
-                }
-            }
-        });
-    }
-
-    @Override
-    public void visit (varTypeNode it) {}
-    
-    @Override
-    public void visit (whileStmtNode it) {
-        // label conditionLabel = new label(curFunction.curRegisterID) ;
-        label conditionLabel = new label(curFunction.identifier + "_ID" + curFunction.curRegisterID + "_while_condition") ;
-        // block conditionBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        block conditionBlock = new block(conditionLabel.labelID) ;
-        currentBlock.push_back(new branch(conditionLabel));
-        
-        currentBlock = conditionBlock ;
-        it.expression.accept(this) ;
-        if (returnEntity instanceof register) {
-            // register i1Reg = new register(0, new IRIntType(1)) ;
-            typeCasting((register) returnEntity, new IRIntType(1)) ;
-            // returnEntity = i1Reg ;
-        }
-
-        // label suiteLabel = new label(curFunction.curRegisterID) ;
-        // block suiteBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        // label whileOutLabel = new label(curFunction.curRegisterID) ;
-        // block whileOutBlock = new block(Integer.toString(curFunction.curRegisterID ++)) ;
-        label suiteLabel = new label(curFunction.identifier + "_ID" + curFunction.curRegisterID + "_while_suite") ;
-        block suiteBlock = new block(suiteLabel.labelID) ;
-        label whileOutLabel = new label(curFunction.identifier + "_ID" + curFunction.curRegisterID + "_while_out") ;
-        block whileOutBlock = new block(whileOutLabel.labelID) ;
-        currentBlock.push_back(new branch(returnEntity, suiteLabel, whileOutLabel));
-        curFunction.blocks.add(conditionBlock) ;
-
-        flowController.inLoop(null, conditionLabel, whileOutLabel);
-        
-        currentBlock = suiteBlock ;
-        curScope = new Scope(curScope) ;
-        it.statement.accept(this) ;
-        curScope = curScope.parentScope() ;
-        currentBlock.push_back(new branch(conditionLabel)) ;
-        curFunction.blocks.add(suiteBlock) ;
-
-        flowController.outLoop(true) ;
-        currentBlock = whileOutBlock ;
-        curFunction.blocks.add(whileOutBlock) ;
-    }
+import java.util.Arrays;
+import java.util.Objects;
+
+import static Builtin.BuiltinLLVM.builtinFunc;
+import static IR.Type.PointerType.I32STAR;
+import static IR.Type.PointerType.I8STAR;
+
+// todo:
+// 1. add @ or % to var name
+// 3. bool -> i8
+// 4. annotation: variable naming, block naming
+// 5. handle builtin
+public class IRBuilder implements ASTVisitor {
+
+	private static final int ptrSize = 8;
+	private static final String constructorSuffix = "..constructor";
+
+	Module topModule;
+
+	ProgramNode astRoot;
+
+	Function initFunc;
+
+	// Scope: used for mapping variable id -> Value
+	Scope currentScope;
+	BasicBlock currentBlock = null;
+	// (var def is) in global := (currentFunction == null)
+	Function currentFunction = null;
+	// (function is) class function := (currentStruct != null)
+	StructType currentStruct = null;
+
+	// prepare for break & continue
+	BasicBlock currentBreakDest = null, currentContDest = null;
+
+	public IRBuilder(String filename, ProgramNode astRoot) {
+		this.astRoot = astRoot;
+		topModule = new Module(filename);
+		currentScope = new Scope(null);
+	}
+
+	public Module work() {
+		visit(astRoot);
+		return topModule;
+	}
+
+	@Override
+	public void visit(ProgramNode it) {
+		// put name of struct into topModule
+		// so they can be found by identifier
+		initBuiltin();
+
+		// init function
+		initFunc = new Function(new FuncType(Type.VOID), "var.init");
+		initFunc.blocks.add(new BasicBlock("func.entry"));
+		topModule.gFunc.put(initFunc.id, initFunc);
+
+		it.body.forEach(x -> {
+			if (x instanceof ClassDefNode newX) {
+				topModule.gStruct.put(newX.id, new StructType(newX.id));
+			}
+		});
+		// put fields of struct into topModule
+		// so the fields can be found by identifier
+		it.body.forEach(x -> {
+			if (x instanceof ClassDefNode newX) {
+				var structType = topModule.gStruct.get(newX.id);
+				for (int i = 0; i < newX.field.size(); ++i) {
+					var tmp = newX.field.get(i);
+					tmp.type.accept(this);
+					structType.varType.add(tmp.type.irType);
+					structType.fieldIdx.put(tmp.id, i);
+				}
+			}
+		});
+		// put the functions into topModule
+		it.body.forEach(x -> {
+			if (x instanceof FuncDefNode newX) {
+				addFunc(newX, null);
+			}
+			else if (x instanceof ClassDefNode newX) {
+				var currentStruct = topModule.gStruct.get(newX.id);
+				if (!newX.constructor.isEmpty()) {
+					String id = newX.id + constructorSuffix;
+					topModule.gFunc.put(id, new Function(new FuncType(Type.VOID, new PointerType(currentStruct)), id));
+				}
+				newX.method.forEach(y -> {
+					addFunc(y, currentStruct);
+				});
+			}
+		});
+
+		it.body.forEach(x -> x.accept(this));
+
+		// init function return; main call init function
+		currentBlock = initFunc.blocks.getLast();
+		addInst(new RetInst());
+		topModule.gFunc.get("main").blocks.getFirst().insts.addFirst(new CallInst(initFunc));
+
+
+		firstPass(topModule);
+//		new IRPrinter(null).giveName(topModule);
+	}
+
+	// function id, return type, argument type
+	void addFunc(FuncDefNode it, StructType currentStruct) {
+		String id = (currentStruct == null ? "" : currentStruct.id + ".") + it.id;
+
+		it.returnType.accept(this);
+		var funcType = new FuncType(it.returnType.irType);
+
+		if (currentStruct != null) {
+			funcType.argType.add(new PointerType(currentStruct));
+		}
+
+		it.paramList.forEach(x -> {
+			x.type.accept(this);
+			funcType.argType.add(x.type.irType);
+		});
+		topModule.gFunc.put(id, new Function(funcType, id));
+	}
+
+	void firstPass(Module it) {
+		// define var.init function
+		// define internal void @__cxx_global_var_init() section ".text.startup" {}
+
+		// give string name
+		int cnt = 0;
+		for (var x : it.gConstant) {
+			x.id = x.id + (cnt++);
+		}
+
+		// erase useless inst
+		it.gFunc.forEach((k, v) -> {
+			v.blocks.forEach(x -> {
+				x.insts.removeIf(x1 -> (x1.type.basicType != TypeEnum.VOID &&
+						!(x1 instanceof CallInst) && x1.useList.isEmpty()));
+			});
+		});
+	}
+
+	void initBuiltin() {
+		builtinFunc.forEach(x -> topModule.gFunc.put(x.id, x));
+	}
+
+	@Override
+	public void visit(FuncDefNode it) {
+
+		var funcName = currentStruct == null ? it.id : currentStruct.id + "." + it.id;
+		var func = topModule.gFunc.get(funcName);
+		var ty = (FuncType)func.type;
+
+		currentFunction = func;
+
+		// init block: initialize parameter
+		currentBlock = new BasicBlock("func.entry");
+		func.blocks.add(currentBlock);
+
+		currentScope = new Scope(currentScope);
+
+		// struct parameter "this"
+		if (currentStruct != null) {
+			var ptrTy = ty.argType.get(0);
+			var variable = new Variable(ptrTy, "this");
+			func.arg.add(variable);
+			var allocaInst = addInst(new AllocaInst(ptrTy), "this.ptr");
+			addInst(new StoreInst(variable, allocaInst));
+			currentScope.addEntity("this", allocaInst);
+		}
+
+		it.paramList.forEach(x -> {
+			var variable = new Variable(x.type.irType, x.id);
+			func.arg.add(variable);
+			var allocaInst = addInst(new AllocaInst(x.type.irType), x.id + ".ptr");
+			addInst(new StoreInst(variable, allocaInst));
+			currentScope.addEntity(x.id, allocaInst);
+		});
+
+		it.body.body.forEach(x -> x.accept(this));
+
+		// function returns if there is no explicit return instruction
+		if (currentBlock.insts.isEmpty() ||
+				!(currentBlock.insts.get(currentBlock.insts.size() - 1) instanceof RetInst)) {
+			addInst(switch (ty.returnType.basicType) {
+				case VOID -> new RetInst();
+				case INT -> new RetInst(new IntConstant(0, ((IntType)ty.returnType).width));
+				default -> new UnreachableInst();
+			});
+		}
+
+		currentScope = currentScope.parentScope;
+		currentFunction = null;
+	}
+
+	// todo: function finding
+	@Override
+	public void visit(ClassDefNode it) {
+		currentStruct = topModule.gStruct.get(it.id);
+		currentScope = new Scope(currentScope, true);
+		it.constructor.forEach(x -> x.accept(this));
+		it.method.forEach(x -> x.accept(this));
+		currentScope = currentScope.parentScope;
+		currentStruct = null;
+	}
+
+	@Override
+	public void visit(ConstructorDefNode it) {
+		var func = topModule.gFunc.get(currentStruct.id + constructorSuffix);
+		var ty = (FuncType)func.type;
+
+		// init block: initialize parameter
+		currentBlock = new BasicBlock("func.entry");
+		func.blocks.add(currentBlock);
+
+		currentScope = new Scope(currentScope);
+
+		// struct parameter "this"
+		if (currentStruct != null) {
+			var ptrTy = ty.argType.get(0);
+			var variable = new Variable(ptrTy, "this");
+			func.arg.add(variable);
+			var allocaInst = addInst(new AllocaInst(ptrTy), "this.ptr");
+			addInst(new StoreInst(variable, allocaInst));
+			currentScope.addEntity("this", allocaInst);
+		}
+
+		currentFunction = func;
+		it.body.body.forEach(x -> x.accept(this));
+
+		// function returns if there is no explicit return instruction
+		if (currentBlock.insts.size() == 0 ||
+			!(currentBlock.insts.get(currentBlock.insts.size() - 1) instanceof RetInst)) {
+			addInst(new RetInst());
+		}
+
+		currentFunction = null;
+		currentScope = currentScope.parentScope;
+	}
+
+	@Override
+	public void visit(VarDefStmtNode it) {
+		it.varList.forEach(x -> x.accept(this));
+	}
+
+	@Override
+	public void visit(VarDefSubStmtNode it) {
+		it.type.accept(this);
+		if (it.isGlobal) {
+			var ptr = new Variable(new PointerType(it.type.irType), it.id, new ZeroInitConstant(it.type.irType));
+			topModule.gVar.put(it.id, ptr);
+			currentScope.addEntity(it.id, ptr);
+			currentFunction = initFunc;
+			currentBlock = initFunc.blocks.getLast();
+		} else {
+			var ptr = addInst(new AllocaInst(it.type.irType), it.id);
+			currentScope.addEntity(it.id, ptr);
+		}
+		// init
+		if (it.init != null) {
+			var assignNode = new AssignExprNode(new VarExprNode(it.id, null), it.init, null);
+			visit(assignNode);
+		}
+	}
+
+	@Override
+	public void visit(ReturnStmtNode it) {
+		if (it.value != null) {
+			it.value.accept(this);
+			if (it.value.irValue instanceof NullConstant) {
+				it.value.irValue.type = ((FuncType)currentFunction.type).returnType;
+			}
+			addInst(new RetInst(it.value.irValue));
+		} else {
+			addInst(new RetInst());
+		}
+	}
+
+	/**
+	 * simple block:
+	 * not start of a function
+	 * starts a new scope
+	 */
+	@Override
+	public void visit(BlockStmtNode it) {
+		currentScope = new Scope(currentScope);
+
+		it.body.forEach(x -> x.accept(this));
+
+		currentScope = currentScope.parentScope;
+	}
+
+	@Override
+	public void visit(ExprStmtNode it) {
+		it.expr.accept(this);
+	}
+
+	private void checkConditionBool(ExprNode cond) {
+		// translate int to bool
+		if (!cond.irValue.type.equals(IntType.INT1)) {
+			var oldVal = cond.irValue;
+			var width = new IntConstant(0, ((IntType)oldVal.type).width);
+			var icmp = addInst(new IcmpInst(IcmpInst.OpType.NE, oldVal,
+					width), "to.bool");
+			cond.irValue = icmp;
+		}
+	}
+
+	@Override
+	public void visit(IfStmtNode it) {
+		if (it.elseStmt != null) {
+			var ifThen = new BasicBlock("if.then");
+			var ifElse = new BasicBlock("if.else");
+			var ifEnd = new BasicBlock("if.end");
+
+			it.condition.accept(this);
+			checkConditionBool(it.condition);
+			addInst(new BrInst(it.condition.irValue, ifThen, ifElse));
+
+			currentFunction.blocks.add(ifThen);
+			currentBlock = ifThen;
+			it.thenStmt.accept(this);
+			addInst(new BrLabelInst(ifEnd));
+
+			currentFunction.blocks.add(ifElse);
+			currentBlock = ifElse;
+			it.elseStmt.accept(this);
+			addInst(new BrLabelInst(ifEnd));
+
+			currentFunction.blocks.add(ifEnd);
+			currentBlock = ifEnd;
+		} else {
+			var ifThen = new BasicBlock("if.then");
+			var ifEnd = new BasicBlock("if.end");
+
+			it.condition.accept(this);
+			checkConditionBool(it.condition);
+			addInst(new BrInst(it.condition.irValue, ifThen, ifEnd));
+
+			currentFunction.blocks.add(ifThen);
+			currentBlock = ifThen;
+			it.thenStmt.accept(this);
+			addInst(new BrLabelInst(ifEnd));
+
+			currentFunction.blocks.add(ifEnd);
+			currentBlock = ifEnd;
+		}
+	}
+
+	@Override
+	public void visit(WhileStmtNode it) {
+		var whileCond = new BasicBlock("while.cond");
+		var whileBody = new BasicBlock("while.body");
+		var whileEnd = new BasicBlock("while.end");
+
+		addInst(new BrLabelInst(whileCond));
+
+		currentFunction.blocks.add(whileCond);
+		currentBlock = whileCond;
+		it.cond.accept(this);
+		checkConditionBool(it.cond);
+		addInst(new BrInst(it.cond.irValue, whileBody, whileEnd));
+
+
+		currentFunction.blocks.add(whileBody);
+		currentBlock = whileBody;
+
+		// prepare for while and continue
+		// break: jump to whileEnd
+		// continue: jump to whileCond
+		BasicBlock oldEnd = currentBreakDest, oldIncr = currentContDest;
+		currentBreakDest = whileEnd;
+		currentContDest = whileCond;
+
+		it.body.accept(this);
+
+		currentBreakDest = oldEnd;
+		currentContDest = oldIncr;
+
+		addInst(new BrLabelInst(whileCond));
+
+
+		currentBlock = whileEnd;
+		currentFunction.blocks.add(whileEnd);
+	}
+
+	@Override
+	public void visit(ForStmtNode it) {
+		var forCond = new BasicBlock("for.cond");
+		var forBody = new BasicBlock("for.body");
+		var forIncr = new BasicBlock("for.incr");
+		var forEnd = new BasicBlock("for.end");
+
+		if (it.init != null) {
+			it.init.accept(this);
+		}
+		if (it.initDef != null) {
+			it.initDef.forEach(x -> {
+				x.type.accept(this);
+				var variable = new Variable(x.type.irType, x.id);
+				var allocaInst = addInst(new AllocaInst(x.type.irType), x.id + ".ptr");
+				addInst(new StoreInst(variable, allocaInst));
+				currentScope.addEntity(x.id, allocaInst);
+			});
+		}
+		addInst(new BrLabelInst(forCond));
+
+		currentFunction.blocks.add(forCond);
+		currentBlock = forCond;
+		if (it.cond != null) {
+			it.cond.accept(this);
+			checkConditionBool(it.cond);
+			addInst(new BrInst(it.cond.irValue, forBody, forEnd));
+		} else {
+			addInst(new BrLabelInst(forBody));
+		}
+
+		currentFunction.blocks.add(forBody);
+		currentBlock = forBody;
+
+		// prepare for while and continue
+		// break: jump to forEnd
+		// continue: jump to forIncr
+		BasicBlock oldEnd = currentBreakDest, oldIncr = currentContDest;
+		currentBreakDest = forEnd;
+		currentContDest = forIncr;
+
+		it.body.accept(this);
+
+		currentBreakDest = oldEnd;
+		currentContDest = oldIncr;
+
+		addInst(new BrLabelInst(forIncr));
+
+		currentFunction.blocks.add(forIncr);
+		currentBlock = forIncr;
+		if (it.incr != null) {
+			it.incr.accept(this);
+		}
+		addInst(new BrLabelInst(forCond));
+
+		currentBlock = forEnd;
+		currentFunction.blocks.add(forEnd);
+	}
+
+	@Override
+	public void visit(ControlStmtNode it) {
+		switch (it.type) {
+			case BREAK -> addInst(new BrLabelInst(currentBreakDest));
+			case CONTINUE -> addInst(new BrLabelInst(currentContDest));
+		}
+	}
+
+	@Override
+	public void visit(EmptyStmtNode it) {
+
+	}
+
+	@Override
+	public void visit(IntExprNode it) {
+		it.irValue = new IntConstant(it.value);
+	}
+
+	@Override
+	public void visit(BoolExprNode it) {
+		it.irValue = it.value ? IntConstant.TRUE : IntConstant.FALSE;
+	}
+	@Override
+	public void visit(StringExprNode it) {
+		var strConstant = new StrConstant(it.value);
+		strConstant.id = ".str";
+		topModule.gConstant.add(strConstant);
+		it.irValue = addInst(new GEPInst(PointerType.I8STAR,
+				strConstant, IntConstant.ZERO, IntConstant.ZERO));
+	}
+
+	@Override
+	public void visit(NullExprNode it) {
+		// type of null constant is to be determined
+		it.irValue = new NullConstant();
+	}
+
+	// todo: irPointer maintain
+	@Override
+	public void visit(AssignExprNode it) {
+		it.right.accept(this);
+		it.left.accept(this);
+		// class / array = null
+		// xx = xx
+
+		// NULL check
+		if (it.right.type.type == AST.Type.TypeEnum.NULL) {
+			it.right.irValue.type = it.left.irValue.type;
+		}
+
+		addInst(new StoreInst(it.right.irValue, it.left.irPointer));
+		it.irValue = it.right.irValue;
+	}
+
+	private BinaryInst.OpType getBinaryOpType(String s) {
+		return switch(s) {
+			case "+" -> BinaryInst.OpType.ADD_NSW;
+			case "-" -> BinaryInst.OpType.SUB_NSW;
+			case "*" -> BinaryInst.OpType.MUL_NSW;
+			case "/" -> BinaryInst.OpType.SDIV;
+			case "%" -> BinaryInst.OpType.SREM;
+			case "<<" -> BinaryInst.OpType.SHL;
+			case ">>" -> BinaryInst.OpType.ASHR;
+			case "&" -> BinaryInst.OpType.AND;
+			case "|" -> BinaryInst.OpType.OR;
+			case "^" -> BinaryInst.OpType.XOR;
+			case "||" -> BinaryInst.OpType.OR;
+			case "&&" -> BinaryInst.OpType.AND;
+			default -> null;
+		};
+	}
+
+	private IcmpInst.OpType getCmpOpType(String s) {
+		return switch(s) {
+			case "==" -> IcmpInst.OpType.EQ;
+			case "!=" -> IcmpInst.OpType.NE;
+			case ">" -> IcmpInst.OpType.SGT;
+			case ">=" -> IcmpInst.OpType.SGE;
+			case "<" -> IcmpInst.OpType.SLT;
+			case "<=" -> IcmpInst.OpType.SLE;
+			default -> null;
+		};
+	}
+
+	@Override
+	public void visit(BinaryExprNode it) {
+		if (it.op.equals("||") || it.op.equals("&&")) {
+			binaryLogicHandle(it);
+			return;
+		}
+
+		it.left.accept(this);
+		it.right.accept(this);
+
+		Value res = null;
+		switch (it.op) {
+			case "!=", "==" -> {
+				// null check & type completion
+				boolean leftNull = it.left.type.type == AST.Type.TypeEnum.NULL,
+						rightNull = it.right.type.type == AST.Type.TypeEnum.NULL;
+				if (leftNull && rightNull) {
+					res = IntConstant.TRUE;
+				} else if (leftNull) {
+					it.left.irValue.type = it.right.irValue.type;
+				} else if (rightNull) {
+					it.right.irValue.type = it.left.irValue.type;
+				}
+
+				// string(maybe one null): strcmp
+				// both null: true
+				// other: icmp
+				if (it.left.type.type == AST.Type.TypeEnum.STRING ||
+						it.right.type.type == AST.Type.TypeEnum.STRING) {
+					var callInst = addInst(new CallInst(topModule.gFunc.get("__mx_builtin_strcmp"),
+							it.left.irValue, it.right.irValue), "strcmp.res");
+					res = new IcmpInst(getCmpOpType(it.op), callInst, IntConstant.ZERO);
+				} else if (!leftNull || !rightNull) {
+					res = new IcmpInst(getCmpOpType(it.op), it.left.irValue, it.right.irValue);
+				}
+			}
+			case "<", "<=", ">", ">=" -> {
+				if (it.left.type.type == AST.Type.TypeEnum.STRING) {
+					var callInst = addInst(new CallInst(topModule.gFunc.get("__mx_builtin_strcmp"), it.left.irValue, it.right.irValue));
+					res = new IcmpInst(getCmpOpType(it.op), callInst, IntConstant.ZERO);
+				} else { // int compare
+					res = new IcmpInst(getCmpOpType(it.op), it.left.irValue, it.right.irValue);
+				}
+			}
+			case "+" -> {
+				if (it.left.type.type == AST.Type.TypeEnum.STRING) {
+					res = new CallInst(topModule.gFunc.get("__mx_builtin_strcat"), it.left.irValue, it.right.irValue);
+				} else { // int
+					res = new BinaryInst(getBinaryOpType(it.op), it.left.irValue, it.right.irValue);
+				}
+			}
+			case "-", "*", "/", "%", "<<", ">>", "&", "|", "^" -> {
+				res = new BinaryInst(getBinaryOpType(it.op), it.left.irValue, it.right.irValue);
+			}
+		}
+		if (res instanceof Inst newRes) {
+			addInst(newRes);
+		}
+		it.irValue = res;
+	}
+
+	private void binaryLogicHandle(BinaryExprNode it) {
+		it.left.accept(this);
+
+		var logicRhs = new BasicBlock("logic.rhs");
+		var logicEnd = new BasicBlock("logic.end");
+		var pastBlock = currentBlock;
+		boolean isAnd = it.op.equals("&&");
+
+		if (isAnd) {
+			addInst(new BrInst(it.left.irValue, logicRhs, logicEnd));
+		} else {
+			addInst(new BrInst(it.left.irValue, logicEnd, logicRhs));
+		}
+
+		currentFunction.blocks.add(logicRhs);
+		currentBlock = logicRhs;
+		it.right.accept(this);
+		addInst(new BrLabelInst(logicEnd));
+
+		currentFunction.blocks.add(logicEnd);
+		currentBlock = logicEnd;
+
+		if (isAnd){
+			it.irValue = addInst(new PhiInst(new Pair<>(IntConstant.FALSE, pastBlock),
+					new Pair<>(it.right.irValue, logicRhs)));
+		} else {
+			it.irValue = addInst(new PhiInst(new Pair<>(IntConstant.TRUE, pastBlock),
+					new Pair<>(it.right.irValue, logicRhs)));
+		}
+	}
+
+	@Override
+	public void visit(BinaryBoolExprNode it) {
+		visit((BinaryExprNode) it);
+	}
+
+	@Override
+	public void visit(PrefixExprNode it) {
+		it.value.accept(this);
+		Inst res = null;
+		switch (it.op) {
+			case "++" -> {
+				res = addInst(new BinaryInst(BinaryInst.OpType.ADD_NSW, it.value.irValue, IntConstant.ONE));
+				addInst(new StoreInst(res, it.value.irPointer));
+			}
+			case "--" -> {
+				res = addInst(new BinaryInst(BinaryInst.OpType.SUB_NSW, it.value.irValue, IntConstant.ONE));
+				addInst(new StoreInst(res, it.value.irPointer));
+			}
+			case "~" -> res = addInst(new BinaryInst(BinaryInst.OpType.XOR, it.value.irValue, IntConstant.NEG_ONE));
+			case "!" -> res = addInst(new BinaryInst(BinaryInst.OpType.XOR, it.value.irValue, IntConstant.TRUE));
+			case "-" -> res = addInst(new BinaryInst(BinaryInst.OpType.SUB_NSW, IntConstant.ZERO, it.value.irValue));
+		}
+		it.irValue = res;
+		if (it.assignable) { // ++ or --
+			it.irPointer = it.value.irPointer;
+		}
+	}
+
+	@Override
+	public void visit(SuffixExprNode it) {
+		it.value.accept(this);
+		Inst res = null;
+		switch (it.op) {
+			case "++" -> res = new BinaryInst(BinaryInst.OpType.ADD_NSW,
+					it.value.irValue, IntConstant.ONE);
+			case "--" -> res = new BinaryInst(BinaryInst.OpType.SUB_NSW,
+					it.value.irValue, IntConstant.ONE);
+		}
+		addInst(res);
+		addInst(new StoreInst(res, it.value.irPointer));
+		it.irValue = it.value.irValue;
+	}
+
+	@Override
+	public void visit(LambdaExprNode it) {
+		// lambda is not implemented
+	}
+
+	// val: t*; return: t
+	private StructType getStructType(Value val) {
+		return (StructType) ((PointerType)val.type).baseType;
+	}
+
+	@Override
+	//type: i8* string; T** array; T* class
+	public void visit(MemberExprNode it) {
+		it.base.accept(this);
+		if (it.isFunc) {
+			if (it.isStr) { // string
+				var funcName =  "__mx_str_" + it.id;
+				it.irValue = topModule.gFunc.get(funcName);
+				it.basePointer = it.base.irValue;
+			} else if (it.isArray) { // arr.size()
+				it.irValue = null;
+				it.basePointer = it.base.irValue;
+			} else {
+				var funcName = getStructType(it.base.irValue).id + "." + it.id;
+				it.irValue = topModule.gFunc.get(funcName);
+				it.basePointer = it.base.irValue;
+			}
+		} else {
+			var idx = getStructType(it.base.irValue).fieldIdx.get(it.id);
+			var gepInst = addInst(new GEPInst(it.base.irValue, IntConstant.ZERO, new IntConstant(idx)));
+			var loadInst = addInst(new LoadInst(gepInst), "load.");
+			it.irValue = loadInst;
+			it.irPointer = gepInst;
+		}
+	}
+
+	public Value getBestMatch(ArrayList<Value> paramList, Function... funcs) {
+		var filter = new ArrayList<>(Arrays.asList(funcs));
+		filter.removeIf(Objects::isNull);
+		out: for (var x : filter) {
+			for (int i = 0; i < paramList.size(); ++i) {
+				var p = ((FuncType)x.type).argType.get(i);
+				var q = paramList.get(i).type;
+				var r = p.equals(q);
+				if (!((FuncType)x.type).argType.get(i).equals(paramList.get(i).type)) {
+					continue out;
+				}
+			}
+			return x;
+		}
+		// no match
+		return null;
+	}
+
+	@Override
+	public void visit(FuncCallExprNode it) {
+		it.func.accept(this);
+
+		// arr.size()
+		if (it.func instanceof MemberExprNode mFunc && mFunc.irValue == null) {
+			var i32Ptr1 = addInst(new BitcastInst(I32STAR, mFunc.basePointer), "i32.ptr.1");
+			var i32Ptr0 = addInst(new GEPInst(i32Ptr1, IntConstant.NEG_ONE), "i32.ptr.0");
+			var loadInst = addInst(new LoadInst(i32Ptr0), "arr.size");
+			it.irValue = loadInst;
+			return;
+		}
+
+		// get arg list
+		var irParamList = new ArrayList<Value>();
+		it.argList.forEach(x -> {
+			x.accept(this);
+			irParamList.add(x.irValue);
+		});
+
+		Inst call = null;
+		if (it.func instanceof MemberExprNode mFunc) {
+			call = new CallInst(it.func.irValue);
+			call.addUse(mFunc.basePointer);
+		} else {
+			// VarExprNode
+			// get best match
+			var node = (VarExprNode)it.func;
+			// we need a function overload and find match
+			// ugly, but I am tired to revise it
+			Type tmp = null;
+			if (node.classFunc != null) {
+				tmp = ((FuncType)node.classFunc.type).argType.remove(0);
+			}
+			// order: class func first, global func last
+			var func = getBestMatch(irParamList, node.classFunc, (Function) node.irValue);
+
+			if (node.classFunc != null) {
+				((FuncType)node.classFunc.type).argType.add(0, tmp);
+			}
+
+			call = new CallInst(func);
+
+			if (func == node.classFunc) { // class func; parameter "this"
+				var pointer = currentScope.getEntity("this", true);
+				var thisLoadInst = addInst(new LoadInst(pointer), "this.self");
+				call.addUse(thisLoadInst);
+			}
+		}
+
+		// add parameter; null check
+		int cnt = 0;
+		for (var x : irParamList) {
+			if (x instanceof NullConstant) {
+				x.type = ((FuncType)it.func.irValue.type).argType.get(cnt);
+			}
+			call.addUse(x);
+			++cnt;
+		}
+
+		it.irValue = addInst(call, "call.");
+	}
+
+	@Override
+	public void visit(SubscriptExprNode it) {
+		it.base.accept(this);
+		it.index.accept(this);
+		it.irPointer = addInst(new GEPInst(it.base.irValue, it.index.irValue));
+		it.irValue = addInst(new LoadInst(it.irPointer));
+	}
+
+
+	// type is PointerType -> StructType (aka T*)
+	private Value simpleNewHandle(Type type) {
+		// allocate
+		Type base = ((PointerType)type).getDereference();
+		var newSize = new IntConstant(base.getSize());
+		var newPtr = addInst(new CallInst(topModule.gFunc.get("__mx_builtin_malloc"), newSize), "new.ptr");
+		var bitcastPtr = addInst(new BitcastInst(type, newPtr), "bitcast.ptr");
+
+		// init
+		// constructor exists: call constructor
+		boolean ok = false;
+		if (base instanceof StructType structType) {
+			var cons = topModule.gFunc.get(structType.id + constructorSuffix);
+			if (cons != null) {
+				ok = true;
+				addInst(new CallInst(cons, bitcastPtr));
+			}
+		}
+		// otherwise: memset
+		if (!ok) {
+			addInst(new CallInst(topModule.gFunc.get("__mx_builtin_memset"),
+					newPtr, IntConstant.ZERO, newSize));
+		}
+		return bitcastPtr;
+	}
+
+
+	// quite hard to implement
+	// dim >= 1
+	// sizes.size() >= 1
+	// process:
+	//  type: ptr(type,dim)
+	//  cnt: sizes.get(startIndex); size = sizeof(type)*cnt
+	//  init: 1. start < sizes.size() - 1
+	//            i = 0...cnt-1
+	//            store arrayNewHandle(type, dim - 1, sizes, startIndex - 1), &ptr[i]
+	//        2.       ==
+	//        2.1. dim == sizes.size() && has constructor
+	//            i = 0...cnt-1
+	//            call constructor(&ptr[i])
+	//        2.2. otherwise
+	//            memset(ptr, 0, size, false)
+
+	// new T[]: sizeof(T*)
+	// new int[]: sizeof(int)
+	private Value arrayNewHandle(Type type, int dim, ArrayList<Value> sizes, int startIndex) {
+		// allocate
+		var baseSize = new IntConstant(dim == 1 ? type.getSize() : ptrSize);
+		var newSize0 = addInst(new BinaryInst(BinaryInst.OpType.MUL_NSW,
+				sizes.get(startIndex), baseSize), "new.size.0");
+		var newSize1 = addInst(new BinaryInst(BinaryInst.OpType.ADD_NSW,
+				newSize0, IntConstant.FOUR), "new.size.1");
+
+		var i8Ptr0 = addInst(new CallInst(topModule.gFunc.get("__mx_builtin_malloc"), newSize1), "i8.ptr.0");
+		var i32Ptr0 = addInst(new BitcastInst(I32STAR, i8Ptr0), "i32.ptr.0");
+		addInst(new StoreInst(sizes.get(startIndex), i32Ptr0));
+		var i32Ptr1 = addInst(new GEPInst(i32Ptr0, IntConstant.ONE), "i32.ptr.1");
+		var typePtr = addInst(new BitcastInst(new PointerType(type, dim), i32Ptr1), "type.ptr");
+
+		// init
+		if (startIndex < sizes.size() - 1) {
+			var whileStartPackage = whileStart(sizes.get(startIndex));
+			var res = arrayNewHandle(type, dim - 1, sizes, startIndex + 1);
+			var arrayI = addInst(new GEPInst(typePtr, whileStartPackage.whileIValue), "array.i");
+			addInst(new StoreInst(res, arrayI));
+			whileEnd(whileStartPackage);
+		} else {
+			// ptr array init: memset
+			var i8Ptr1 = addInst(new BitcastInst(I8STAR, typePtr), "i8.ptr.1");
+			addInst(new CallInst(topModule.gFunc.get("__mx_builtin_memset"),
+						i8Ptr1, IntConstant.ZERO, newSize0));
+		}
+		return typePtr;
+	}
+
+
+	@Override
+	public void visit(NewExprNode it) {
+		it.newType.accept(this);
+		ArrayList<Value> sizes = new ArrayList<>();
+		for (var x : it.sizes) {
+			x.accept(this);
+			sizes.add(x.irValue);
+		}
+		if (it.newType.dim != 0) {
+			var baseTypeNode = new TypeNode(it.newType.type, it.newType.identifier, 0, null);
+			baseTypeNode.accept(this);
+			it.irValue = arrayNewHandle(baseTypeNode.irType, it.newType.dim, sizes, 0);
+		} else {
+			it.irValue = simpleNewHandle(it.newType.irType);
+		}
+	}
+
+	@Override
+	public void visit(ThisExprNode it) {
+		var pointer = currentScope.getEntity("this", true);
+		var thisLoadInst = addInst(new LoadInst(pointer), "this.self");
+		var valLoadInst = addInst(new LoadInst(pointer), "this.value");
+		it.irValue = valLoadInst;
+		it.irPointer = thisLoadInst;
+	}
+
+	@Override
+	public void visit(VarExprNode it) {
+		if (it.isFunc) {
+			// res.irValue: func found in global
+			// res.classFunc: func found in class
+			if (currentStruct != null) {
+				it.classFunc = topModule.gFunc.get(currentStruct.id + "." + it.id);
+			}
+			it.irValue = topModule.gFunc.get(it.id);
+		} else {
+			// 2022/12/3: fix a error
+			// first check in Scope
+			var result = currentScope.getEntityInClass(it.id, true);
+			// then check in Class
+			var idx = currentStruct != null ? currentStruct.fieldIdx.get(it.id) : null;
+			if (idx != null && (result.a == null || result.b)) {
+				var thisLoadInst = addInst(
+						new LoadInst(currentScope.getEntity("this", true)), "this.self");
+				var gepInst = addInst(new GEPInst(thisLoadInst, IntConstant.ZERO, new IntConstant(idx)));
+				var loadInst = addInst(new LoadInst(gepInst), "this." + it.id + ".value");
+				it.irValue = loadInst;
+				it.irPointer = gepInst;
+			} else {
+				var pointer = result.a;
+				var loadInst = addInst(new LoadInst(pointer), it.id + ".value");
+				it.irValue = loadInst;
+				it.irPointer = pointer;
+			}
+		}
+	}
+
+	@Override
+	public void visit(TypeNode it) {
+		if (it.irType != null) {
+			return;
+		}
+		var irTypeBase = switch (it.type) {
+			case VOID -> Type.VOID;
+			case INT -> IntType.INT32;
+			case BOOL -> IntType.INT1;
+			case STRING -> PointerType.I8STAR;
+			case CLASS -> new PointerType(topModule.gStruct.get(it.identifier));
+			default -> null;
+		};
+		if (it.dim == 0) {
+			it.irType = irTypeBase;
+		} else {
+			it.irType = new PointerType(irTypeBase, it.dim);
+		}
+	}
+
+
+	// tool functions
+
+	private Inst addInst(Inst inst, String id) {
+		currentBlock.addInst(inst);
+		inst.id = id;
+
+		// maintain blocks
+//		if (inst instanceof BrLabelInst newInst) {
+//			BasicBlock.addLink(currentBlock, (BasicBlock) newInst.getUse(0));
+//		} else if (inst instanceof BrInst newInst) {
+//			BasicBlock.addLink(currentBlock, (BasicBlock) newInst.getUse(0));
+//			BasicBlock.addLink(currentBlock, (BasicBlock) newInst.getUse(1));
+//		}
+		return inst;
+	}
+
+	private Inst addInst(Inst inst) {
+		return addInst(inst, "");
+	}
+
+	private static class WhileStartPackage {
+		public Value whileI, whileIValue;
+		public BasicBlock whileCond, whileEnd;
+
+		public WhileStartPackage(Value whileI, Value whileIValue, BasicBlock whileCond, BasicBlock whileEnd) {
+			this.whileI = whileI;
+			this.whileIValue = whileIValue;
+			this.whileCond = whileCond;
+			this.whileEnd = whileEnd;
+		}
+	}
+
+	/**
+	 * usage:
+	 * var whileStartPackage = whileStart(N);
+	 * do something...
+	 * whileEnd(whileStartPackage);
+	 * idiotic java grammar
+	 */
+	private WhileStartPackage whileStart(Value whileN) {
+		var whileI = addInst(new AllocaInst(IntType.INT32), "while.i");
+		addInst(new StoreInst(IntConstant.ZERO, whileI));
+
+		BasicBlock whileCond = new BasicBlock("while.cond"),
+				whileBody = new BasicBlock("while.body"),
+				whileEnd = new BasicBlock("while.end");
+
+		addInst(new BrLabelInst(whileCond));
+
+		// while.cond
+		currentFunction.blocks.add(whileCond);
+		currentBlock = whileCond;
+		var whileIValue = addInst(new LoadInst(whileI), "while.i.value");
+		var cmp = addInst(new IcmpInst(IcmpInst.OpType.SLT, whileIValue, whileN), "cmp");
+		addInst(new BrInst(cmp, whileBody, whileEnd));
+
+		// while.body
+		currentFunction.blocks.add(whileBody);
+		currentBlock = whileBody;
+
+		return new WhileStartPackage(whileI, whileIValue, whileCond, whileEnd);
+	}
+
+	private void whileEnd(WhileStartPackage param) {
+		// while.body
+		var whileIValueInc = addInst(new BinaryInst(BinaryInst.OpType.ADD_NSW, param.whileIValue, IntConstant.ONE), "while.i.value.inc");
+		addInst(new StoreInst(whileIValueInc, param.whileI));
+		addInst(new BrLabelInst(param.whileCond));
+		// while.end
+		currentFunction.blocks.add(param.whileEnd);
+		currentBlock = param.whileEnd;
+	}
 }

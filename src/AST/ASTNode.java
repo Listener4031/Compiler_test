@@ -1,15 +1,13 @@
 package AST;
 
-import Util.Type;
-import Util.position;
+import Util.Position;
 
-abstract public class ASTNode {
-    public position pos ;
-    public Type type ;
+public abstract class ASTNode {
+	public Position pos;
 
-    public ASTNode (position _pos) {
-        pos = _pos ;
-    }
+	public ASTNode(Position pos) {
+		this.pos = pos;
+	}
 
-    abstract public void accept (ASTVisitor visitor) ;
+	public abstract void accept(AST.ASTVisitor visitor);
 }

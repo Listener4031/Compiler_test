@@ -1,35 +1,44 @@
 package Util;
 
-import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-public class position {
-    private int row, column ;
+public class Position {
+	private final int row, column;
 
-    public position (int row, int column) {
-        this.row = row ;
-        this.column = column ;
-    }
+	public Position() {
+		this.row = 0;
+		this.column = 0;
+	}
 
-    public position(Token token) {
-        this.row = token.getLine();
-        this.column = token.getCharPositionInLine();
-    }
+	public Position(int row, int column) {
+		this.row = row;
+		this.column = column;
+	}
 
-    public position(TerminalNode terminal) {
-        this(terminal.getSymbol());
-    }
+	public Position(Token token) {
+		this.row = token.getLine();
+		this.column = token.getCharPositionInLine();
+	}
 
-    public position(ParserRuleContext ctx) {
-        this(ctx.getStart());
-    }
+	public Position(TerminalNode terminal) {
+		this(terminal.getSymbol());
+	}
 
-    public int row() { return row; }
+	public Position(ParserRuleContext ctx) {
+		this(ctx.getStart()); //?
+	}
 
-    public int col() {
-        return column;
-    }
+	public int row() {
+		return row;
+	}
 
-    public String toString() { return row + "," + column; }
+	public int column() {
+		return column;
+	}
+
+	public String toString() {
+		return row + ", " + column;
+	}
 }

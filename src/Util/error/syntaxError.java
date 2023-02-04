@@ -1,9 +1,9 @@
-package Util.error;
+package Util.Error;
 
-import Util.position;
+import Util.Position;
 
-public class syntaxError extends error {
-    public syntaxError (String message, position pos) {
-        super ("SyntaxError: " + message, pos) ;
-    }
+public class SyntaxError extends MxError {
+	public SyntaxError(String msg, Position pos) {
+		super("SyntaxError: " + msg, pos);
+	}
 }
