@@ -7,8 +7,12 @@ import Backend.IRPrinter;
 import Frontend.ASTBuilder;
 import Frontend.SymbolCollector;
 import MIR.globalDefine;
-import Backend.MemToReg;
-import Backend.RegisterAllocation;
+import Optimize.AggressiveDCE;
+import Optimize.ConstantPropagation;
+import Optimize.InlineExpansion;
+import Optimize.MemToReg;
+import Optimize.RegisterAllocation;
+import Optimize.SimpleDCE;
 import Frontend.SemanticChecker;
 import Parser.MxLiteLexer;
 import Parser.MxLiteParser;
@@ -30,11 +34,8 @@ public class main {
     public static void main(String[] args) throws Exception{
         String name = "test.mx";
         InputStream raw = new FileInputStream(name);
-        PrintStream IRout = new PrintStream("llvm-test.ll");
-        PrintStream SSA = new PrintStream("ssa.ll");
-        PrintStream AssmDebugOut = new PrintStream("debug.s");
-        PrintStream out = new PrintStream("output.s");
-        try{
+        PrintStream out = new PrintStream("test.s");
+        try {
             CharStream input = CharStreams.fromStream(raw);
             MxLiteLexer lexer = new MxLiteLexer(input);
             lexer.removeErrorListeners();
@@ -51,16 +52,16 @@ public class main {
             new SemanticChecker(gScope).visit(ASTRoot);
             globalDefine globalDef = new globalDefine();
             new IRBuilder(globalDef, gScope).visit(ASTRoot);
-            new IRPrinter().visitGlobalDef(IRout, globalDef);
             new MemToReg(globalDef);
-            new IRPrinter().visitGlobalDef(SSA, globalDef);
+            new ConstantPropagation(globalDef);
+            new AggressiveDCE(globalDef).DCE();
+            new InlineExpansion (globalDef);
             AssemblyGlobalDefine assemblyGlobalDefine = new AssemblyGlobalDefine();
             new AssemblyBuilder(globalDef, assemblyGlobalDefine);
-            new AssemblyPrinter(AssmDebugOut, assemblyGlobalDefine);
             new RegisterAllocation(assemblyGlobalDefine);
             new AssemblyPrinter(out, assemblyGlobalDefine);
         } 
-        catch(error er) {
+        catch(error er){
             System.err.println(er.toString());
             throw new RuntimeException();
         }
