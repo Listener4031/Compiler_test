@@ -34,7 +34,7 @@ public class Compiler {
     public static void main(String[] args) throws Exception{
         String name = "test.mx";
         InputStream raw = new FileInputStream(name);
-        PrintStream out = new PrintStream("test.s");
+        PrintStream out = new PrintStream("output.s");
         try {
             CharStream input = CharStreams.fromStream(raw);
             MxLiteLexer lexer = new MxLiteLexer(input);
