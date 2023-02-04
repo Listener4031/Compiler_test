@@ -26,7 +26,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 
-public class Compiler {
+public class main {
     public static void main(String[] args) throws Exception{
         String name = "test.mx";
         InputStream raw = new FileInputStream(name);
