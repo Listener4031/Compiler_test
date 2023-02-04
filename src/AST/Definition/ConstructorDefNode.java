@@ -2,13 +2,13 @@ package AST.Definition;
 
 import AST.ASTVisitor;
 import AST.Statement.BlockStmtNode;
-import Util.Position;
+import Util.position;
 
 public class ConstructorDefNode extends DefNode {
 	public String id;
 	public BlockStmtNode body;
 
-	public ConstructorDefNode(String id, BlockStmtNode body, Position pos) {
+	public ConstructorDefNode(String id, BlockStmtNode body, position pos) {
 		super(pos);
 		this.id = id;
 		this.body = body;

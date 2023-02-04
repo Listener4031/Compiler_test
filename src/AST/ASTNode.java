@@ -1,11 +1,11 @@
 package AST;
 
-import Util.Position;
+import Util.position;
 
 public abstract class ASTNode {
-	public Position pos;
+	public position pos;
 
-	public ASTNode(Position pos) {
+	public ASTNode(position pos) {
 		this.pos = pos;
 	}
 

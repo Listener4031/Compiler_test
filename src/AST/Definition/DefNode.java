@@ -1,10 +1,10 @@
 package AST.Definition;
 
 import AST.ASTNode;
-import Util.Position;
+import Util.position;
 
 public abstract class DefNode extends ASTNode {
-	public DefNode(Position pos) {
+	public DefNode(position pos) {
 		super(pos);
 	}
 }

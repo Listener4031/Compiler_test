@@ -6,7 +6,7 @@ import AST.Statement.BlockStmtNode;
 import AST.Statement.VarDefSubStmtNode;
 import AST.Type.Type;
 import IR.Value.Global.Function;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 
@@ -16,7 +16,7 @@ public class FuncDefNode extends DefNode {
 	public ArrayList<VarDefSubStmtNode> paramList;
 	public BlockStmtNode body;
 
-	public FuncDefNode(TypeNode type, String id, ArrayList<VarDefSubStmtNode> param, BlockStmtNode body, Position pos) {
+	public FuncDefNode(TypeNode type, String id, ArrayList<VarDefSubStmtNode> param, BlockStmtNode body, position pos) {
 		super(pos);
 		this.returnType = type;
 		this.id = id;

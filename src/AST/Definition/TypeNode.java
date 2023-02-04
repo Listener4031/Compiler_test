@@ -3,7 +3,7 @@ package AST.Definition;
 import AST.ASTNode;
 import AST.ASTVisitor;
 import AST.Type.TypeEnum;
-import Util.Position;
+import Util.position;
 
 public class TypeNode extends ASTNode {
 
@@ -13,7 +13,7 @@ public class TypeNode extends ASTNode {
 
 	public IR.Type.Type irType = null;
 
-	public TypeNode(TypeEnum type, String identifier, int dim, Position pos) {
+	public TypeNode(TypeEnum type, String identifier, int dim, position pos) {
 		super(pos);
 		this.type = type;
 		this.identifier = identifier;

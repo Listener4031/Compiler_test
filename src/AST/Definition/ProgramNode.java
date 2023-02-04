@@ -2,13 +2,13 @@ package AST.Definition;
 
 import AST.ASTNode;
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 
 public class ProgramNode extends ASTNode {
 	public ArrayList<ASTNode> body = new ArrayList<>();
-	public ProgramNode(Position pos) {
+	public ProgramNode(position pos) {
 		super(pos);
 	}
 

@@ -3,7 +3,7 @@ package AST.Definition;
 import AST.ASTVisitor;
 import AST.Scope.Scope;
 import AST.Statement.VarDefSubStmtNode;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 
@@ -17,7 +17,7 @@ public class ClassDefNode extends AST.Definition.DefNode {
 
 	public ClassDefNode(String id, ArrayList<VarDefSubStmtNode> field,
 	                    ArrayList<ConstructorDefNode> constructor,
-	                    ArrayList<FuncDefNode> method, Position pos) {
+	                    ArrayList<FuncDefNode> method, position pos) {
 		super(pos);
 		this.id = id;
 		this.field = field;
