@@ -6,7 +6,6 @@ import Backend.IRBuilder;
 import Backend.IRPrinter;
 import Frontend.ASTBuilder;
 import Frontend.SymbolCollector;
-import Interpreter.IRInterpreter;
 import MIR.globalDefine;
 import Backend.MemToReg;
 import Backend.RegisterAllocation;
