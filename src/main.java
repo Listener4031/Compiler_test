@@ -33,7 +33,7 @@ public class main {
         PrintStream IRout = new PrintStream("llvm-test.ll") ;
         PrintStream SSA = new PrintStream("ssa.ll") ;
         PrintStream AssmDebugOut = new PrintStream("debug.s") ;
-        out = new PrintStream("test.s") ;
+        PrintStream out = new PrintStream("test.s") ;
         try{
             CharStream input = CharStreams.fromStream(raw);
             MxLiteLexer lexer = new MxLiteLexer(input);
