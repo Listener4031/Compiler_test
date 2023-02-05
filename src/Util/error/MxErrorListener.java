@@ -7,13 +7,13 @@ import org.antlr.v4.runtime.Recognizer;
 
 public class MxErrorListener extends BaseErrorListener {
 	@Override
-	public void syntaxError(Recognizer<?, ?> recognizer,
+	public void SyntaxError(Recognizer<?, ?> recognizer,
 							Object offendingSymbol,
-							int line, int charpositionInLine,
+							int line, int charPositionInLine,
 							String msg,
 							RecognitionException e) {
 
-		throw new SyntaxError(msg, new position(line, charpositionInLine));
+		throw new syntaxError(msg, new position(line, charPositionInLine));
 	}
 }
 
