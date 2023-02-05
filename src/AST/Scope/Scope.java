@@ -11,8 +11,8 @@ import AST.Type.Type;
 import AST.Type.TypeEnum;
 import IR.Value.Value;
 import Util.position;
-import Util.Error.InternalError;
-import Util.Error.SemanticError;
+import Util.Error.internalError;
+import Util.Error.semanticError;
 
 public class Scope {
 	public HashMap<String, Type> var = new HashMap<>();
@@ -41,7 +41,7 @@ public class Scope {
 
 	public void addVar(String name, Type t, position pos) {
 		if (types.containsKey(name) || var.containsKey(name)) {
-			throw new SemanticError("Variable redefine", pos);
+			throw new semanticError("Variable redefine", pos);
 		}
 		var.put(name, t);
 	}
@@ -54,7 +54,7 @@ public class Scope {
 			return parentScope.getVarType(name, lookUpon, pos);
 		}
 		else {
-			throw new SemanticError("Variable not found: " + name, pos);
+			throw new semanticError("Variable not found: " + name, pos);
 		}
 	}
 
@@ -92,10 +92,10 @@ public class Scope {
 	public void addType(String name, ClassType t, position pos) {
 		// global scope only
 		if (parentScope != null) {
-			throw new InternalError("Find type at non-global scope", new position());
+			throw new internalError("Find type at non-global scope", new position());
 		}
 		if (types.containsKey(name)) {
-			throw new SemanticError("Type name already defined " + name, pos);
+			throw new semanticError("Type name already defined " + name, pos);
 		}
 		types.put(name, t);
 	}
@@ -103,13 +103,13 @@ public class Scope {
 	public ClassType getType(String name, position pos) {
 		// global scope only
 		if (parentScope != null) {
-			throw new InternalError("Find type at non-global scope", new position());
+			throw new internalError("Find type at non-global scope", new position());
 		}
 		if (types.containsKey(name)) {
 			return types.get(name);
 		}
 		else {
-			throw new SemanticError("Type not found: " + name, pos);
+			throw new semanticError("Type not found: " + name, pos);
 		}
 	}
 
@@ -117,20 +117,20 @@ public class Scope {
 	public void checkType(Type type, position pos) {
 		// global scope only
 		if (parentScope != null) {
-			throw new InternalError("Find type at non-global scope", new position());
+			throw new internalError("Find type at non-global scope", new position());
 		}
 		if (type.type == TypeEnum.ARRAY) {
 			checkType(((ArrayType)type).baseType, pos);
 		} else if (type.type == TypeEnum.CLASS) {
 			if (!types.containsKey(((ClassType)type).name)) {
-				throw new SemanticError("Type not found: " + ((ClassType)type).name, pos);
+				throw new semanticError("Type not found: " + ((ClassType)type).name, pos);
 			}
 		}
 	}
 
 	public void addFunc(String name, FuncType type, position pos) {
 		if (types.containsKey(name) || func.containsKey(name))
-			throw new SemanticError("Function name already defined " + name, pos);
+			throw new semanticError("Function name already defined " + name, pos);
 		func.put(name, type);
 	}
 
@@ -142,7 +142,7 @@ public class Scope {
 			return parentScope.getFuncType(name, lookUpon, pos);
 		}
 		else {
-			throw new SemanticError("Function not found: " + name, pos);
+			throw new semanticError("Function not found: " + name, pos);
 		}
 	}
 
