@@ -1,9 +1,9 @@
 package Util.Error;
 
-import Util.Position;
+import Util.position;
 
 public class InternalError extends MxError {
-	public InternalError(String msg, Position pos) {
+	public InternalError(String msg, position pos) {
 		super("InternalError: " + msg, pos);
 	}
 }

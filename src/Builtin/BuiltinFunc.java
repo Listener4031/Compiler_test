@@ -2,7 +2,7 @@ package Builtin;
 
 import AST.Type.ClassType;
 import AST.Type.FuncType;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,11 +10,11 @@ import java.util.HashMap;
 
 // a static class
 public final class BuiltinFunc {
-	private static final Position methodPosition = new Position();
+	private static final position methodposition = new position();
 
 	public static ClassType arrayType = new ClassType("Array") {{
 		var arraySizeFuncType = new FuncType("size", BuiltinType.intType);
-		addFunc("size", arraySizeFuncType, methodPosition);
+		addFunc("size", arraySizeFuncType, methodposition);
 	}};
 
 	public static ClassType stringType = new ClassType("string") {{
@@ -23,10 +23,10 @@ public final class BuiltinFunc {
 		var parseIntFuncType = new FuncType("parseInt", BuiltinType.intType);
 		var ordFuncType = new FuncType("ord", BuiltinType.intType, BuiltinType.intType);
 
-		addFunc("length", lengthFuncType, methodPosition);
-		addFunc("substring", substringFuncType, methodPosition);
-		addFunc("parseInt", parseIntFuncType, methodPosition);
-		addFunc("ord", ordFuncType, methodPosition);
+		addFunc("length", lengthFuncType, methodposition);
+		addFunc("substring", substringFuncType, methodposition);
+		addFunc("parseInt", parseIntFuncType, methodposition);
+		addFunc("ord", ordFuncType, methodposition);
 	}};
 
 	public static HashMap<String, FuncType> function = new HashMap<> () {{
