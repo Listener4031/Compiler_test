@@ -19,7 +19,7 @@ public class position {
 
 	public position(Token token) {
 		this.row = token.getLine();
-		this.column = token.getCharpositionInLine();
+		this.column = token.getCharPositionInLine();
 	}
 
 	public position(TerminalNode terminal) {

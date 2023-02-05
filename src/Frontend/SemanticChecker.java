@@ -11,8 +11,8 @@ import AST.Statement.ControlFlow.*;
 import AST.Type.TypeEnum;
 import Builtin.BuiltinFunc;
 import Builtin.BuiltinType;
-import Util.Error.InternalError;
-import Util.Error.SemanticError;
+import Util.Error.internalError;
+import Util.Error.semanticError;
 import Util.position;
 
 import java.util.ArrayList;
@@ -43,7 +43,7 @@ public class SemanticChecker implements ASTVisitor {
 		// check main function
 		FuncType ty = globalScope.getFuncType("main", false, new position());
 		if (!ty.equals(new FuncType("main", BuiltinType.intType, new ArrayList<>()))) {
-			throw new SemanticError("main function defined incorrectly", new position());
+			throw new semanticError("main function defined incorrectly", new position());
 		}
 	}
 
@@ -72,7 +72,7 @@ public class SemanticChecker implements ASTVisitor {
 		it.body.accept(this);
 
 		if (!(curScope == globalScope && it.id.equals("main")) && !returnType.isVoid() && !returned) {
-			throw new SemanticError("Function not returned: " + it.id, it.pos);
+			throw new semanticError("Function not returned: " + it.id, it.pos);
 		}
 		returnTypes.pop();
 
@@ -125,7 +125,7 @@ public class SemanticChecker implements ASTVisitor {
 		returned = false;
 
 		if (!it.id.equals(curClassType.name)) {
-			throw new SemanticError("Constructor name mismatched: " + it.id, it.pos);
+			throw new semanticError("Constructor name mismatched: " + it.id, it.pos);
 		}
 
 		it.body.accept(this);
@@ -149,10 +149,10 @@ public class SemanticChecker implements ASTVisitor {
 			it.init.accept(this);
 			if (it.init.type.isNull()) {
 				if (!defType.isArray() && !defType.isClass()) {
-					throw new SemanticError("VarDefSubStmtNode.init type error", it.pos);
+					throw new semanticError("VarDefSubStmtNode.init type error", it.pos);
 				}
 			} else if (!defType.equals(it.init.type)) {
-				throw new SemanticError("VarDefSubStmtNode.init type error", it.pos);
+				throw new semanticError("VarDefSubStmtNode.init type error", it.pos);
 			}
 		}
 
@@ -162,7 +162,7 @@ public class SemanticChecker implements ASTVisitor {
 	@Override
 	public void visit(ReturnStmtNode it) {
 		if (returnTypes.empty()) {
-			throw new SemanticError("return used out of a function", it.pos);
+			throw new semanticError("return used out of a function", it.pos);
 		}
 		Type returnType;
 		if (it.value == null) {
@@ -179,10 +179,10 @@ public class SemanticChecker implements ASTVisitor {
 			// todo: rewrite
 			if (returnType.isNull()) {
 				if (!returnTypes.peek().isArray() && !returnTypes.peek().isClass()) {
-					throw new SemanticError("ReturnStmtNode.value type error", it.pos);
+					throw new semanticError("ReturnStmtNode.value type error", it.pos);
 				}
 			} else if (!returnTypes.peek().equals(returnType)) {
-				throw new SemanticError("ReturnStmtNode.value type error", it.pos);
+				throw new semanticError("ReturnStmtNode.value type error", it.pos);
 			}
 		}
 		returned = true;
@@ -219,7 +219,7 @@ public class SemanticChecker implements ASTVisitor {
 	public void visit(IfStmtNode it) {
 		it.condition.accept(this);
 		if (!checkCondition(it.condition)) {
-			throw new SemanticError("IfStmtNode.condition type error", it.condition.pos);
+			throw new semanticError("IfStmtNode.condition type error", it.condition.pos);
 		}
 		it.thenStmt.accept(this);
 		if (it.elseStmt != null) {
@@ -232,7 +232,7 @@ public class SemanticChecker implements ASTVisitor {
 		// bug: cond not iterated
 		it.cond.accept(this);
 		if (!checkCondition(it.cond)) {
-			throw new SemanticError("WhileStmtNode.cond type error", it.cond.pos);
+			throw new semanticError("WhileStmtNode.cond type error", it.cond.pos);
 		}
 		boolean pastInloop = inLoop;
 		inLoop = true;
@@ -258,7 +258,7 @@ public class SemanticChecker implements ASTVisitor {
 		if (it.cond != null) {
 			it.cond.accept(this);
 			if (!checkCondition(it.cond)) {
-				throw new SemanticError("ForStmtNode.cond type error", it.cond.pos);
+				throw new semanticError("ForStmtNode.cond type error", it.cond.pos);
 			}
 		}
 		if (it.incr != null) {
@@ -280,7 +280,7 @@ public class SemanticChecker implements ASTVisitor {
 	@Override
 	public void visit(ControlStmtNode it) {
 		if (!inLoop) {
-			throw new SemanticError("break or continue used out of a loop", it.pos);
+			throw new semanticError("break or continue used out of a loop", it.pos);
 		}
 	}
 
@@ -334,17 +334,17 @@ public class SemanticChecker implements ASTVisitor {
 		it.left.accept(this);
 
 		if (!it.left.assignable) {
-			throw new SemanticError("Assign: BinaryExprNode.left is not assignable", it.left.pos);
+			throw new semanticError("Assign: BinaryExprNode.left is not assignable", it.left.pos);
 		}
 
 		if (it.right.type.isNull()) {
 			switch (it.left.type.type) {
 				case ARRAY, CLASS -> {}
-				default -> throw new SemanticError("Assign: BinaryExprNode type error", it.pos);
+				default -> throw new semanticError("Assign: BinaryExprNode type error", it.pos);
 			}
 		} else {
 			if (!checkTypeIdentical(it.left, it.right)) {
-				throw new SemanticError("Assign: BinaryExprNode type error", it.pos);
+				throw new semanticError("Assign: BinaryExprNode type error", it.pos);
 			}
 		}
 	}
@@ -360,60 +360,60 @@ public class SemanticChecker implements ASTVisitor {
 					case STRING, BOOL, INT -> { }
 					case ARRAY, CLASS -> {
 						if (!it.right.type.isNull()) {
-							throw new SemanticError("BinaryExprNode type error", it.pos);
+							throw new semanticError("BinaryExprNode type error", it.pos);
 						}
 					}
 					case NULL -> {
 						if (!it.right.type.isClass() && !it.right.type.isArray() && !it.right.type.isNull()) {
-							throw new SemanticError("BinaryExprNode type error", it.pos);
+							throw new semanticError("BinaryExprNode type error", it.pos);
 						}
 					}
-					default -> throw new SemanticError("BinaryExprNode type error", it.pos);
+					default -> throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 				if (!it.left.type.isArray() && !it.left.type.isClass() && !it.left.type.isNull() &&
 						!checkTypeIdentical(it.left, it.right)) {
-					throw new SemanticError("BinaryExprNode type error", it.pos);
+					throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 				it.type = new Type(TypeEnum.BOOL);
 			}
 			case "&&", "||" -> {
 				if (!it.left.type.isBool() || !it.right.type.isBool()) {
-					throw new SemanticError("BinaryExprNode type error", it.pos);
+					throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 				it.type = new Type(TypeEnum.BOOL);
 			}
 			case "<", "<=", ">", ">=" -> {
 				if (!checkTypeIdentical(it.left, it.right)) {
-					throw new SemanticError("BinaryExprNode type error", it.pos);
+					throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 				switch (it.left.type.type) {
 					case STRING, INT -> { }
-					default -> throw new SemanticError("BinaryExprNode type error", it.pos);
+					default -> throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 				it.type = new Type(TypeEnum.BOOL);
 			}
 			case "+" -> {
 				if (!checkTypeIdentical(it.left, it.right)) {
-					throw new SemanticError("BinaryExprNode type error", it.pos);
+					throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 				switch (it.left.type.type) {
 					case STRING, INT -> {
 						it.type = new Type(it.left.type.type);
 					}
-					default -> throw new SemanticError("BinaryExprNode type error", it.pos);
+					default -> throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 			}
 			case "-", "*", "/", "%", "<<", ">>", "&", "|", "^" -> {
 				if (!checkTypeIdentical(it.left, it.right)) {
-					throw new SemanticError("BinaryExprNode type error", it.pos);
+					throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 				if (it.left.type.type == TypeEnum.INT) {
 					it.type = new Type(it.left.type.type);
 				} else {
-					throw new SemanticError("BinaryExprNode type error", it.pos);
+					throw new semanticError("BinaryExprNode type error", it.pos);
 				}
 			}
-			default -> throw new InternalError("operator not found", it.pos);
+			default -> throw new internalError("operator not found", it.pos);
 		}
 	}
 
@@ -428,18 +428,18 @@ public class SemanticChecker implements ASTVisitor {
 		it.value.accept(this);
 		if (it.op.equals("!")) {
 			if (!it.value.type.isBool()) {
-				throw new SemanticError("SuffixExprNode.value type error", it.value.pos);
+				throw new semanticError("SuffixExprNode.value type error", it.value.pos);
 			}
 		} else {
 			if (!it.value.type.isInt()) {
-				throw new SemanticError("SuffixExprNode.value type error", it.value.pos);
+				throw new semanticError("SuffixExprNode.value type error", it.value.pos);
 			}
 		}
 
 		switch (it.op) {
 			case "++", "--" -> {
 				if (!it.value.assignable) {
-					throw new SemanticError("PrefixExprNode.value is not assignable", it.value.pos);
+					throw new semanticError("PrefixExprNode.value is not assignable", it.value.pos);
 				}
 				it.assignable = true;
 			}
@@ -452,11 +452,11 @@ public class SemanticChecker implements ASTVisitor {
 	public void visit(SuffixExprNode it) {
 		it.value.accept(this);
 		if (!it.value.type.isInt()) {
-			throw new SemanticError("SuffixExprNode.value type error", it.value.pos);
+			throw new semanticError("SuffixExprNode.value type error", it.value.pos);
 		}
 
 		if (!it.value.assignable) {
-			throw new SemanticError("SuffixExprNode.value is not assignable", it.value.pos);
+			throw new semanticError("SuffixExprNode.value is not assignable", it.value.pos);
 		}
 
 		it.type = it.value.type;
@@ -489,7 +489,7 @@ public class SemanticChecker implements ASTVisitor {
 		ArrayList<Type> param = new ArrayList<>();
 		for (var i : it.paramList) {
 //			if (i.init != null) {
-//				throw new SemanticError("Function argument with init value: " + i.id, i.pos);
+//				throw new semanticError("Function argument with init value: " + i.id, i.pos);
 //			}
 			Type paramType = Type.transNode(i.type);
 			globalScope.checkType(paramType, i.type.pos);
@@ -511,7 +511,7 @@ public class SemanticChecker implements ASTVisitor {
 					it.type = BuiltinFunc.arrayType.getFuncType(it.id, it.pos);
 					it.isArray = true;
 				} else {
-					throw new SemanticError("MemberExprNode.base type error", it.base.pos);
+					throw new semanticError("MemberExprNode.base type error", it.base.pos);
 				}
 			}
 			case STRING -> {
@@ -519,7 +519,7 @@ public class SemanticChecker implements ASTVisitor {
 					it.type = BuiltinFunc.stringType.getFuncType(it.id, it.pos);
 					it.isStr = true;
 				} else {
-					throw new SemanticError("MemberExprNode.base type error", it.base.pos);
+					throw new semanticError("MemberExprNode.base type error", it.base.pos);
 				}
 			}
 			case CLASS -> {
@@ -531,7 +531,7 @@ public class SemanticChecker implements ASTVisitor {
 					it.assignable = true;
 				}
 			}
-			default -> throw new SemanticError("MemberExprNode.base type error", it.base.pos);
+			default -> throw new semanticError("MemberExprNode.base type error", it.base.pos);
 		}
 	}
 
@@ -539,16 +539,16 @@ public class SemanticChecker implements ASTVisitor {
 	public void visit(FuncCallExprNode it) {
 		it.func.accept(this);
 		if (!it.func.type.isFunc()) {
-			throw new SemanticError("FuncCallExprNode.func type error", it.func.pos);
+			throw new semanticError("FuncCallExprNode.func type error", it.func.pos);
 		}
 		var funcType = (FuncType)it.func.type;
 		if (it.argList.size() != funcType.param.size()) {
-			throw new SemanticError("FuncCallExprNode.param length does not match", it.func.pos);
+			throw new semanticError("FuncCallExprNode.param length does not match", it.func.pos);
 		}
 		for (int i = 0; i < it.argList.size(); ++i) {
 			it.argList.get(i).accept(this);
 			if (!checkAssignable(funcType.param.get(i), it.argList.get(i).type)) {
-				throw new SemanticError("FuncCallExprNode.param No." + (i + 1) + " does not match",
+				throw new semanticError("FuncCallExprNode.param No." + (i + 1) + " does not match",
 						it.argList.get(i).pos);
 			}
 		}
@@ -559,11 +559,11 @@ public class SemanticChecker implements ASTVisitor {
 	public void visit(SubscriptExprNode it) {
 		it.base.accept(this);
 		if (!it.base.type.isArray()) {
-			throw new SemanticError("SubscriptExprNode.base type error", it.base.pos);
+			throw new semanticError("SubscriptExprNode.base type error", it.base.pos);
 		}
 		it.index.accept(this);
 		if (!it.index.type.isInt()) {
-			throw new SemanticError("SubscriptExprNode.index type error", it.base.pos);
+			throw new semanticError("SubscriptExprNode.index type error", it.base.pos);
 		}
 		var baseType = (ArrayType)it.base.type;
 		if (baseType.dim == 1) {
@@ -581,7 +581,7 @@ public class SemanticChecker implements ASTVisitor {
 		for (var i : it.sizes) {
 			i.accept(this);
 			if (!i.type.isInt()) {
-				throw new SemanticError("Size of new array is not an int", i.pos);
+				throw new semanticError("Size of new array is not an int", i.pos);
 			}
 		}
 	}
@@ -589,7 +589,7 @@ public class SemanticChecker implements ASTVisitor {
 	@Override
 	public void visit(ThisExprNode it) {
 		if (!inClass) {
-			throw new SemanticError("this used out of class", it.pos);
+			throw new semanticError("this used out of class", it.pos);
 		}
 		it.type = curClassType;
 	}

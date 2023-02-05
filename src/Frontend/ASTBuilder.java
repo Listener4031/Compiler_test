@@ -9,7 +9,7 @@ import AST.Statement.*;
 import AST.Type.TypeEnum;
 import Parser.MxBaseVisitor;
 import Parser.MxParser;
-import Util.Error.SyntaxError;
+import Util.Error.syntaxError;
 import Util.position;
 
 import java.util.ArrayList;
@@ -353,7 +353,7 @@ public class ASTBuilder extends MxBaseVisitor<ASTNode> {
 
 	@Override
 	public ASTNode visitErrArrayNewExpr(MxParser.ErrArrayNewExprContext ctx) {
-		throw new SyntaxError("Error in new array subscript", new position(ctx));
+		throw new syntaxError("Error in new array subscript", new position(ctx));
 	}
 
 	@Override
