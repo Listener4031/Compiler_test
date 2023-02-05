@@ -2,12 +2,12 @@ package AST.Statement;
 
 import AST.ASTVisitor;
 import AST.Expression.ExprNode;
-import Util.Position;
+import Util.position;
 
 public class ExprStmtNode extends StmtNode {
 	public ExprNode expr;
 
-	public ExprStmtNode(ExprNode expr, Position pos) {
+	public ExprStmtNode(ExprNode expr, position pos) {
 		super(pos);
 		this.expr = expr;
 	}

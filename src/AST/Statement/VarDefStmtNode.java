@@ -1,14 +1,14 @@
 package AST.Statement;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 
 public class VarDefStmtNode extends StmtNode {
 	public ArrayList<VarDefSubStmtNode> varList;
 
-	public VarDefStmtNode(ArrayList<VarDefSubStmtNode> varList, Position pos) {
+	public VarDefStmtNode(ArrayList<VarDefSubStmtNode> varList, position pos) {
 		super(pos);
 		this.varList = varList;
 	}

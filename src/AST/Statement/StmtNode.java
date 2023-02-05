@@ -1,10 +1,10 @@
 package AST.Statement;
 
 import AST.ASTNode;
-import Util.Position;
+import Util.position;
 
 public abstract class StmtNode extends ASTNode {
-	public StmtNode (Position pos) {
+	public StmtNode (position pos) {
 		super(pos);
 	}
 }

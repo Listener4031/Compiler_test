@@ -1,12 +1,12 @@
 package AST.Expression.Atom;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 public class BoolExprNode extends AtomExprNode {
 	public boolean value;
 
-	public BoolExprNode(boolean value, Position pos) {
+	public BoolExprNode(boolean value, position pos) {
 		super(pos);
 		this.value = value;
 	}

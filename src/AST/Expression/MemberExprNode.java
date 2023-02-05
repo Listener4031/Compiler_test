@@ -2,7 +2,7 @@ package AST.Expression;
 
 import AST.ASTVisitor;
 import IR.Value.Value;
-import Util.Position;
+import Util.position;
 
 public class MemberExprNode extends ExprNode {
 	public ExprNode base;
@@ -13,7 +13,7 @@ public class MemberExprNode extends ExprNode {
 	public Value basePointer = null;
 
 
-	public MemberExprNode(ExprNode base, String id, Position pos) {
+	public MemberExprNode(ExprNode base, String id, position pos) {
 		super(pos);
 		this.base = base;
 		this.id = id;

@@ -1,13 +1,13 @@
 package AST.Statement;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 
 public class BlockStmtNode extends StmtNode {
 	public ArrayList<StmtNode> body;
-	public BlockStmtNode(ArrayList<StmtNode> body, Position pos) {
+	public BlockStmtNode(ArrayList<StmtNode> body, position pos) {
 		super(pos);
 		this.body = body;
 	}

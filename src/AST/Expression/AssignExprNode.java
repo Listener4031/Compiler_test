@@ -2,12 +2,12 @@ package AST.Expression;
 
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 public class AssignExprNode extends ExprNode {
 	public ExprNode left, right;
 
-	public AssignExprNode(ExprNode left, ExprNode right, Position pos) {
+	public AssignExprNode(ExprNode left, ExprNode right, position pos) {
 		super(pos);
 		this.left = left;
 		this.right = right;

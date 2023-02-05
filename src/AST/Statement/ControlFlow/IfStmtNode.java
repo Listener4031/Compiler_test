@@ -3,13 +3,13 @@ package AST.Statement.ControlFlow;
 import AST.ASTVisitor;
 import AST.Expression.ExprNode;
 import AST.Statement.StmtNode;
-import Util.Position;
+import Util.position;
 
 public class IfStmtNode extends StmtNode {
 	public ExprNode condition;
 	public StmtNode thenStmt, elseStmt;
 
-	public IfStmtNode(ExprNode condition, StmtNode thenStmt, StmtNode elseStmt, Position pos) {
+	public IfStmtNode(ExprNode condition, StmtNode thenStmt, StmtNode elseStmt, position pos) {
 		super(pos);
 		this.condition = condition;
 		this.thenStmt = thenStmt;

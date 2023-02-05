@@ -3,7 +3,7 @@
 //import AST.Type.Type;
 //import AST.Type.TypeEnum;
 //import Util.Error.SemanticError;
-//import Util.Position;
+//import Util.position;
 //
 //import java.util.HashMap;
 //
@@ -15,7 +15,7 @@
 //		super(parentScope);
 //	}
 //
-//	public void addFunc(String name, Type type, Position pos) {
+//	public void addFunc(String name, Type type, position pos) {
 //		if (func.containsKey(name))
 //			throw new SemanticError("Function name already defined " + name, pos);
 //		func.put(name, type);

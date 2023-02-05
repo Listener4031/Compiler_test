@@ -2,7 +2,7 @@ package AST.Statement.ControlFlow;
 
 import AST.ASTVisitor;
 import AST.Statement.StmtNode;
-import Util.Position;
+import Util.position;
 
 public class ControlStmtNode extends StmtNode {
 	public enum Type {
@@ -10,7 +10,7 @@ public class ControlStmtNode extends StmtNode {
 	}
 	public Type type;
 
-	public ControlStmtNode(Type type, Position pos) {
+	public ControlStmtNode(Type type, position pos) {
 		super(pos);
 		this.type = type;
 	}

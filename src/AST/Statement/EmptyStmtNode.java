@@ -1,10 +1,10 @@
 package AST.Statement;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 public class EmptyStmtNode extends StmtNode {
-	public EmptyStmtNode(Position pos) {
+	public EmptyStmtNode(position pos) {
 		super(pos);
 	}
 

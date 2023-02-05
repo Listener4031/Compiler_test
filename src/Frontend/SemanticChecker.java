@@ -13,7 +13,7 @@ import Builtin.BuiltinFunc;
 import Builtin.BuiltinType;
 import Util.Error.InternalError;
 import Util.Error.SemanticError;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 import java.util.Stack;
@@ -41,9 +41,9 @@ public class SemanticChecker implements ASTVisitor {
 		curScope = globalScope;
 
 		// check main function
-		FuncType ty = globalScope.getFuncType("main", false, new Position());
+		FuncType ty = globalScope.getFuncType("main", false, new position());
 		if (!ty.equals(new FuncType("main", BuiltinType.intType, new ArrayList<>()))) {
-			throw new SemanticError("main function defined incorrectly", new Position());
+			throw new SemanticError("main function defined incorrectly", new position());
 		}
 	}
 

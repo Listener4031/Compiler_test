@@ -41,9 +41,9 @@ public class SymbolCollector implements ASTVisitor {
 	public SymbolCollector(Scope globalScope) {
 		this.globalScope = globalScope;
 		// basic types
-//		globalScope.addType("int", new Type(TypeEnum.INT), new Position());
-//		globalScope.addType("String", new Type(TypeEnum.STRING), new Position());
-//		globalScope.addType("bool", new Type(TypeEnum.BOOL), new Position());
+//		globalScope.addType("int", new Type(TypeEnum.INT), new position());
+//		globalScope.addType("String", new Type(TypeEnum.STRING), new position());
+//		globalScope.addType("bool", new Type(TypeEnum.BOOL), new position());
 	}
 
 	@Override

@@ -3,7 +3,7 @@ package AST.Expression;
 import AST.ASTNode;
 import AST.Type.Type;
 import IR.Value.Value;
-import Util.Position;
+import Util.position;
 
 public abstract class ExprNode extends ASTNode {
 	public Type type;
@@ -12,7 +12,7 @@ public abstract class ExprNode extends ASTNode {
 	public Value irValue = null;
 	public Value irPointer = null;
 
-	public ExprNode(Position pos) {
+	public ExprNode(position pos) {
 		super(pos);
 	}
 }

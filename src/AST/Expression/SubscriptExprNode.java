@@ -1,12 +1,12 @@
 package AST.Expression;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 public class SubscriptExprNode extends ExprNode {
 	public ExprNode base, index;
 
-	public SubscriptExprNode(ExprNode base, ExprNode index, Position pos) {
+	public SubscriptExprNode(ExprNode base, ExprNode index, position pos) {
 		super(pos);
 		this.base = base;
 		this.index = index;

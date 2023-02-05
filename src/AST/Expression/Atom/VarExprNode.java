@@ -2,7 +2,7 @@ package AST.Expression.Atom;
 
 import AST.ASTVisitor;
 import IR.Value.Global.Function;
-import Util.Position;
+import Util.position;
 
 public class VarExprNode extends AtomExprNode {
 	public boolean isFunc = false;
@@ -10,7 +10,7 @@ public class VarExprNode extends AtomExprNode {
 
 	public Function classFunc = null;
 
-	public VarExprNode(String id, Position pos) {
+	public VarExprNode(String id, position pos) {
 		super(pos);
 		this.id = id;
 	}

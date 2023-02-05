@@ -1,10 +1,10 @@
 package AST.Expression.Atom;
 
 import AST.Expression.ExprNode;
-import Util.Position;
+import Util.position;
 
 public abstract class AtomExprNode extends ExprNode {
-	public AtomExprNode(Position pos) {
+	public AtomExprNode(position pos) {
 		super(pos);
 	}
 }

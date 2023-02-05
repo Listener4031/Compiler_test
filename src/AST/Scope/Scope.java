@@ -10,7 +10,7 @@ import AST.Type.FuncType;
 import AST.Type.Type;
 import AST.Type.TypeEnum;
 import IR.Value.Value;
-import Util.Position;
+import Util.position;
 import Util.Error.InternalError;
 import Util.Error.SemanticError;
 
@@ -39,14 +39,14 @@ public class Scope {
 	}
 
 
-	public void addVar(String name, Type t, Position pos) {
+	public void addVar(String name, Type t, position pos) {
 		if (types.containsKey(name) || var.containsKey(name)) {
 			throw new SemanticError("Variable redefine", pos);
 		}
 		var.put(name, t);
 	}
 
-	public Type getVarType(String name, boolean lookUpon, Position pos) {
+	public Type getVarType(String name, boolean lookUpon, position pos) {
 		if (var.containsKey(name)) {
 			return var.get(name);
 		}
@@ -89,10 +89,10 @@ public class Scope {
 	}
 
 
-	public void addType(String name, ClassType t, Position pos) {
+	public void addType(String name, ClassType t, position pos) {
 		// global scope only
 		if (parentScope != null) {
-			throw new InternalError("Find type at non-global scope", new Position());
+			throw new InternalError("Find type at non-global scope", new position());
 		}
 		if (types.containsKey(name)) {
 			throw new SemanticError("Type name already defined " + name, pos);
@@ -100,10 +100,10 @@ public class Scope {
 		types.put(name, t);
 	}
 
-	public ClassType getType(String name, Position pos) {
+	public ClassType getType(String name, position pos) {
 		// global scope only
 		if (parentScope != null) {
-			throw new InternalError("Find type at non-global scope", new Position());
+			throw new InternalError("Find type at non-global scope", new position());
 		}
 		if (types.containsKey(name)) {
 			return types.get(name);
@@ -114,10 +114,10 @@ public class Scope {
 	}
 
 	// check if the type exists
-	public void checkType(Type type, Position pos) {
+	public void checkType(Type type, position pos) {
 		// global scope only
 		if (parentScope != null) {
-			throw new InternalError("Find type at non-global scope", new Position());
+			throw new InternalError("Find type at non-global scope", new position());
 		}
 		if (type.type == TypeEnum.ARRAY) {
 			checkType(((ArrayType)type).baseType, pos);
@@ -128,13 +128,13 @@ public class Scope {
 		}
 	}
 
-	public void addFunc(String name, FuncType type, Position pos) {
+	public void addFunc(String name, FuncType type, position pos) {
 		if (types.containsKey(name) || func.containsKey(name))
 			throw new SemanticError("Function name already defined " + name, pos);
 		func.put(name, type);
 	}
 
-	public FuncType getFuncType(String name, boolean lookUpon, Position pos) {
+	public FuncType getFuncType(String name, boolean lookUpon, position pos) {
 		if (func.containsKey(name)) {
 			return func.get(name);
 		}

@@ -1,7 +1,7 @@
 package AST.Type;
 
 import Util.Error.InternalError;
-import Util.Position;
+import Util.position;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +33,7 @@ public class FuncType extends Type {
 		}
 		var another = (FuncType)rhs;
 		if (returnType == null || param == null) {
-			throw new InternalError("FuncType with null field is compared", new Position());
+			throw new InternalError("FuncType with null field is compared", new position());
 		}
 		return name.equals(another.name) && returnType.equals(another.returnType) && param.equals(another.param);
 	}

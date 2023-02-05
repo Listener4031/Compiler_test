@@ -1,10 +1,10 @@
 package AST.Expression.Atom;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 public class ThisExprNode extends AtomExprNode {
-	public ThisExprNode(Position pos) {
+	public ThisExprNode(position pos) {
 		super(pos);
 	}
 

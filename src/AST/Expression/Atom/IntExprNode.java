@@ -1,12 +1,12 @@
 package AST.Expression.Atom;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 public class IntExprNode extends AtomExprNode {
 	public int value;
 
-	public IntExprNode(int value, Position pos) {
+	public IntExprNode(int value, position pos) {
 		super(pos);
 		this.value = value;
 	}

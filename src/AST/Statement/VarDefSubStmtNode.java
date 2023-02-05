@@ -3,7 +3,7 @@ package AST.Statement;
 import AST.ASTVisitor;
 import AST.Expression.ExprNode;
 import AST.Definition.TypeNode;
-import Util.Position;
+import Util.position;
 
 public class VarDefSubStmtNode extends StmtNode {
 	public TypeNode type;
@@ -12,7 +12,7 @@ public class VarDefSubStmtNode extends StmtNode {
 	public boolean isGlobal = false;
 
 	//'type' field is assigned by caller
-	public VarDefSubStmtNode(String id, ExprNode init, Position pos) {
+	public VarDefSubStmtNode(String id, ExprNode init, position pos) {
 		super(pos);
 		this.id = id;
 		this.init = init;

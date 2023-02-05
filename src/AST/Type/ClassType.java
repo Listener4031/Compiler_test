@@ -2,7 +2,7 @@ package AST.Type;
 
 
 import Util.Error.SemanticError;
-import Util.Position;
+import Util.position;
 
 import java.util.HashMap;
 
@@ -17,14 +17,14 @@ public class ClassType extends Type {
 		this.name = name;
 	}
 
-	public void addVar(String name, Type t, Position pos) {
+	public void addVar(String name, Type t, position pos) {
 		if (var.containsKey(name)) {
 			throw new SemanticError("Variable redefine", pos);
 		}
 		var.put(name, t);
 	}
 
-	public Type getVarType(String name, Position pos) {
+	public Type getVarType(String name, position pos) {
 		if (var.containsKey(name)) {
 			return var.get(name);
 		} else {
@@ -32,7 +32,7 @@ public class ClassType extends Type {
 		}
 	}
 
-	public void addFunc(String name, FuncType type, Position pos) {
+	public void addFunc(String name, FuncType type, position pos) {
 		if (func.containsKey(name)){
 			throw new SemanticError("Member func already defined " + name, pos);
 		}
@@ -40,7 +40,7 @@ public class ClassType extends Type {
 	}
 
 
-	public FuncType getFuncType(String name, Position pos) {
+	public FuncType getFuncType(String name, position pos) {
 		if (func.containsKey(name)) {
 			return func.get(name);
 		} else {

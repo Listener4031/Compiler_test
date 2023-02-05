@@ -1,10 +1,10 @@
 package AST.Expression;
 
 import AST.ASTVisitor;
-import Util.Position;
+import Util.position;
 
 public class BinaryBoolExprNode extends BinaryExprNode{
-	public BinaryBoolExprNode(ExprNode left, ExprNode right, String op, Position pos) {
+	public BinaryBoolExprNode(ExprNode left, ExprNode right, String op, position pos) {
 		super(left, right, op, pos);
 	}
 

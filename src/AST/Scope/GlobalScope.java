@@ -6,7 +6,7 @@
 //import AST.Type.Type;
 //import AST.Type.TypeEnum;
 //import Util.Error.SemanticError;
-//import Util.Position;
+//import Util.position;
 //
 //import java.util.HashMap;
 //
@@ -20,34 +20,34 @@
 //	}
 //
 //	@Override
-//	public void addVar(String name, Type t, Position pos) {
+//	public void addVar(String name, Type t, position pos) {
 //		if (types.containsKey(name) || var.containsKey(name)) {
 //			throw new SemanticError("Variable redefine", pos);
 //		}
 //		var.put(name, t);
 //	}
 //
-//	public void addType(String name, ClassType t, Position pos) {
+//	public void addType(String name, ClassType t, position pos) {
 //		if (types.containsKey(name))
 //			throw new SemanticError("Type name already defined " + name, pos);
 //		types.put(name, t);
 //	}
 //
-//	public ClassType getType(String name, Position pos) {
+//	public ClassType getType(String name, position pos) {
 //		if (types.containsKey(name)) return types.get(name);
 //		else throw new SemanticError("Type not found: " + name, pos);
 //	}
 //
 //
 //
-//	public void addFunc(String name, FuncType type, Position pos) {
+//	public void addFunc(String name, FuncType type, position pos) {
 //		if (types.containsKey(name) || func.containsKey(name))
 //			throw new SemanticError("Function name already defined " + name, pos);
 //		func.put(name, type);
 //	}
 //
 //	@Override
-//	public Type getFuncType(String name, boolean lookUpon, Position pos) {
+//	public Type getFuncType(String name, boolean lookUpon, position pos) {
 //		if (func.containsKey(name)) {
 //			return func.get(name);
 //		}

@@ -3,11 +3,11 @@ package AST.Statement.ControlFlow;
 import AST.ASTVisitor;
 import AST.Expression.ExprNode;
 import AST.Statement.StmtNode;
-import Util.Position;
+import Util.position;
 
 public class ReturnStmtNode extends StmtNode {
 	public ExprNode value;
-	public ReturnStmtNode(ExprNode value, Position pos) {
+	public ReturnStmtNode(ExprNode value, position pos) {
 		super(pos);
 		this.value = value;
 	}
